@@ -1,6 +1,7 @@
+from core.comment_manager import CommentManager
 from core.date_manager import DateManager
 from core.equipment_manager import EquipmentManager
-from core.comment_manager import CommentManager
+from core.style_manager import StyleManager
 
 
 class WorksheetEditor:
@@ -8,79 +9,79 @@ class WorksheetEditor:
     Изменение данных на листе Excel.
     """
 
-def __init__(self, excel):
+    def __init__(self, excel):
 
-    self.excel = excel
+        self.excel = excel
 
-    self.equipment = EquipmentManager(excel)
+        self.equipment = EquipmentManager(excel)
 
-    self.dates = DateManager(excel)
+        self.dates = DateManager(excel)
 
-    self.comments = CommentManager(excel)
-
-   from core.style_manager import StyleManager
+        self.comments = CommentManager(excel)
 
     def write_code(
-    self,
-    garage_number: str,
-    model: str,
-    date: str,
-    code: str,
-):
+        self,
+        garage_number: str,
+        model: str,
+        date,
+        code: str,
+    ):
 
-    machines = self.equipment.find(
-        garage_number=garage_number,
-        model=model,
-    )
-
-    if len(machines) != 1:
-        raise RuntimeError(
-            f"Найдено машин: {len(machines)}"
+        machines = self.equipment.find(
+            garage_number=garage_number,
+            model=model,
         )
 
-    machine = machines[0]
+        if len(machines) != 1:
+            raise RuntimeError(
+                f"Найдено машин: {len(machines)}"
+            )
 
-    column = self.dates.find(date)
+        machine = machines[0]
 
-    cell = self.excel.worksheet.cell(
-        row=machine.row,
-        column=column,
-    )
+        column = self.dates.find(date)
 
-    value = code.strip()
-
-    cell.value = value
-
-    cell.fill = StyleManager.get_fill(value)
-
-    return machine.row, column
-def write_note(
-    self,
-    garage_number,
-    model,
-    date,
-    work,
-    employees,
-):
-
-    machines = self.equipment.find(
-        garage_number=garage_number,
-        model=model,
-    )
-
-    if len(machines) != 1:
-
-        raise RuntimeError(
-            f"Найдено машин: {len(machines)}"
+        cell = self.excel.worksheet.cell(
+            row=machine.row,
+            column=column,
         )
 
-    machine = machines[0]
+        value = str(code).strip()
 
-    column = self.dates.find(date)
+        cell.value = value
 
-    self.comments.set(
-        machine.row,
-        column,
+        cell.fill = StyleManager.get_fill(value)
+
+        return machine.row, column
+
+    def write_note(
+        self,
+        garage_number,
+        model,
+        date,
         work,
         employees,
-    )
+    ):
+
+        machines = self.equipment.find(
+            garage_number=garage_number,
+            model=model,
+        )
+
+        if len(machines) != 1:
+            raise RuntimeError(
+                f"Найдено машин: {len(machines)}"
+            )
+
+        machine = machines[0]
+
+        column = self.dates.find(date)
+
+        self.comments.set(
+            row=machine.row,
+            column=column,
+            work=work,
+            employees=employees,
+        )
+
+        return machine.row, column
