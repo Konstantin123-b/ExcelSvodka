@@ -1,0 +1,86 @@
+from core.date_manager import DateManager
+from core.equipment_manager import EquipmentManager
+from core.comment_manager import CommentManager
+
+
+class WorksheetEditor:
+    """
+    Изменение данных на листе Excel.
+    """
+
+def __init__(self, excel):
+
+    self.excel = excel
+
+    self.equipment = EquipmentManager(excel)
+
+    self.dates = DateManager(excel)
+
+    self.comments = CommentManager(excel)
+
+   from core.style_manager import StyleManager
+
+    def write_code(
+    self,
+    garage_number: str,
+    model: str,
+    date: str,
+    code: str,
+):
+
+    machines = self.equipment.find(
+        garage_number=garage_number,
+        model=model,
+    )
+
+    if len(machines) != 1:
+        raise RuntimeError(
+            f"Найдено машин: {len(machines)}"
+        )
+
+    machine = machines[0]
+
+    column = self.dates.find(date)
+
+    cell = self.excel.worksheet.cell(
+        row=machine.row,
+        column=column,
+    )
+
+    value = code.strip()
+
+    cell.value = value
+
+    cell.fill = StyleManager.get_fill(value)
+
+    return machine.row, column
+def write_note(
+    self,
+    garage_number,
+    model,
+    date,
+    work,
+    employees,
+):
+
+    machines = self.equipment.find(
+        garage_number=garage_number,
+        model=model,
+    )
+
+    if len(machines) != 1:
+
+        raise RuntimeError(
+            f"Найдено машин: {len(machines)}"
+        )
+
+    machine = machines[0]
+
+    column = self.dates.find(date)
+
+    self.comments.set(
+        machine.row,
+        column,
+        work,
+        employees,
+    )

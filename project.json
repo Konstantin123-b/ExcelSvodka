@@ -1,0 +1,19 @@
+{
+    "excel_file": "Ежедневная сводка.xlsx",
+    "work_date": "14.07.2026",
+    "records": [
+        {
+            "date": "14.07.2026",
+            "model": "WA900",
+            "garage_number": "28",
+            "code": "ав",
+            "description": "Чистка насосов и рамы",
+            "employees": [
+                "Куповой",
+                "Дербенев"
+            ],
+            "customer_work": false,
+            "enabled": true
+        }
+    ]
+}
