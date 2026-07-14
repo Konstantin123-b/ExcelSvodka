@@ -189,11 +189,58 @@ class MainWindow(QMainWindow):
 
     def on_add_work(self, data):
 
-        self.log_message(
-            f"Добавление работы: {data}"
+    if self.engine is None:
+
+        QMessageBox.warning(
+            self,
+            "ExcelSvodka",
+            "Сначала откройте файл Excel."
         )
 
-        # Здесь будет вызов svodka_engine.
+        return
+
+    try:
+
+        self.engine.add_work(
+            garage_number=data["garage"],
+            model=data["model"],
+            date=data["date"],
+            code=data["code"],
+            work=data["work"],
+            employees=data["employees"],
+        )
+
+        self.engine.apply_changes()
+
+        self.engine.save()
+
+        self.log_message(
+            f"✔ Работа добавлена: {data['garage']}"
+        )
+
+        self.status.setText(
+            "Работа успешно добавлена"
+        )
+
+        QMessageBox.information(
+            self,
+            "ExcelSvodka",
+            "Работа успешно записана."
+        )
+
+        self.work_tab.clear_form()
+
+    except Exception as e:
+
+        QMessageBox.critical(
+            self,
+            "Ошибка",
+            str(e),
+        )
+
+        self.log_message(
+            f"Ошибка: {e}"
+        )
 
     def on_transfer_idle(self, data):
 
