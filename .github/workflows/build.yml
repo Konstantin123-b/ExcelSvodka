@@ -5,8 +5,8 @@ on:
 
   push:
     branches:
-      - develop
       - main
+      - develop
 
 jobs:
   build:
@@ -29,19 +29,40 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build EXE
-        shell: cmd
+      - name: Check project structure
+        shell: pwsh
         run: |
-          pyinstaller ^
-            --clean ^
-            --noconfirm ^
-            --windowed ^
-            --name ExcelSvodka ^
-            --add-data "data;data" ^
+          Write-Host "===== PROJECT ====="
+          Get-ChildItem -Recurse
+
+          if (!(Test-Path "run_gui.py")) {
+            throw "run_gui.py not found"
+          }
+
+          if (!(Test-Path "gui/main_window.py")) {
+            throw "gui/main_window.py not found"
+          }
+
+      - name: Build EXE
+        shell: pwsh
+        run: |
+          pyinstaller `
+            --clean `
+            --noconfirm `
+            --windowed `
+            --name ExcelSvodka `
+            --collect-all PySide6 `
+            --add-data "data;data" `
             run_gui.py
+
+      - name: Show dist
+        shell: pwsh
+        run: |
+          Write-Host "===== DIST ====="
+          Get-ChildItem dist -Recurse
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ExcelSvodka-Windows
-          path: dist/ExcelSvodka/**
+          path: dist/**
