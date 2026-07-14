@@ -5,7 +5,6 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QPushButton,
     QTextEdit,
@@ -17,9 +16,6 @@ from PySide6.QtWidgets import (
 class WorkTab(QWidget):
     """
     Вкладка добавления выполненных работ.
-
-    Не содержит логики работы с Excel.
-    Все действия выполняются через MainWindow/ядро.
     """
 
     add_requested = Signal(dict)
@@ -66,9 +62,7 @@ class WorkTab(QWidget):
         form.addRow("Работа", self.work)
 
         self.employees = QLineEdit()
-        self.employees.setPlaceholderText(
-            "Кузнецов, Иванов..."
-        )
+        self.employees.setPlaceholderText("Кузнецов, Иванов...")
         form.addRow("Исполнители", self.employees)
 
         buttons = QHBoxLayout()
@@ -89,9 +83,7 @@ class WorkTab(QWidget):
         self.add_button.clicked.connect(self._emit_add)
 
     def set_models(self, models):
-        """
-        Заполнить список моделей.
-        """
+
         current = self.model.currentText()
 
         self.model.blockSignals(True)
@@ -125,9 +117,10 @@ class WorkTab(QWidget):
         self.date.setDate(QDate.currentDate())
 
     def _emit_add(self):
+
         self.add_requested.emit(
             {
-                "date": self.date.date().toPython(),
+                "date": self.date.date().toString("dd.MM.yyyy"),
                 "garage": self.garage.text().strip(),
                 "model": self.model.currentText().strip(),
                 "code": self.code.currentText().strip(),
