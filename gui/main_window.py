@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from core.equipment_manager import EquipmentManager
 from core.excel_manager import ExcelManager
+from core.svodka_engine import SvodkaEngine
 
 from gui.work_tab import WorkTab
 from gui.idle_tab import IdleTab
@@ -29,6 +30,7 @@ class MainWindow(QMainWindow):
 
         self.excel = ExcelManager()
         self.equipment = None
+        self.engine = None
 
         self.setWindowTitle("ExcelSvodka")
         self.resize(1100, 800)
@@ -121,6 +123,10 @@ class MainWindow(QMainWindow):
             self.excel.open(filename)
 
             self.equipment = EquipmentManager(
+                self.excel
+            )
+
+            self.engine = SvodkaEngine(
                 self.excel
             )
 
