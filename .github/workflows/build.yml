@@ -43,6 +43,11 @@ jobs:
             throw "gui/main_window.py not found"
           }
 
+      - name: Test import
+        shell: pwsh
+        run: |
+           python -c "import gui.main_window; print('IMPORT OK')"
+
       - name: Build EXE
         shell: pwsh
         run: |
