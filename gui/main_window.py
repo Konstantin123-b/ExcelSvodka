@@ -189,69 +189,115 @@ class MainWindow(QMainWindow):
 
     def on_add_work(self, data):
 
-    if self.engine is None:
+        if self.engine is None:
 
-        QMessageBox.warning(
-            self,
-            "ExcelSvodka",
-            "Сначала откройте файл Excel."
-        )
+            QMessageBox.warning(
+                self,
+                "ExcelSvodka",
+                "Сначала откройте файл Excel."
+            )
 
-        return
+            return
 
-    try:
+        try:
 
-        self.engine.add_work(
-            garage_number=data["garage"],
-            model=data["model"],
-            date=data["date"],
-            code=data["code"],
-            work=data["work"],
-            employees=data["employees"],
-        )
+            self.engine.add_work(
+                garage_number=data["garage"],
+                model=data["model"],
+                date=data["date"],
+                code=data["code"],
+                work=data["work"],
+                employees=data["employees"],
+            )
 
-        self.engine.apply_changes()
+            self.engine.apply_changes()
 
-        self.engine.save()
+            self.engine.save()
 
-        self.log_message(
-            f"✔ Работа добавлена: {data['garage']}"
-        )
+            self.log_message(
+                f"✔ Работа добавлена: {data['garage']}"
+            )
 
-        self.status.setText(
-            "Работа успешно добавлена"
-        )
+            self.status.setText(
+                "Работа успешно добавлена"
+            )
 
-        QMessageBox.information(
-            self,
-            "ExcelSvodka",
-            "Работа успешно записана."
-        )
+            QMessageBox.information(
+                self,
+                "ExcelSvodka",
+                "Работа успешно записана."
+            )
 
-        self.work_tab.clear_form()
+            self.work_tab.clear_form()
 
-    except Exception as e:
+        except Exception as e:
 
-        QMessageBox.critical(
-            self,
-            "Ошибка",
-            str(e),
-        )
+            QMessageBox.critical(
+                self,
+                "Ошибка",
+                str(e),
+            )
 
-        self.log_message(
-            f"Ошибка: {e}"
-        )
-
+            self.log_message(
+                f"Ошибка: {e}"
+            )
     def on_transfer_idle(self, data):
 
-        self.log_message(
-            f"Перенос простоя: {data}"
-        )
+        if self.engine is None:
 
-        # Здесь будет вызов idle_transfer_manager.
+            QMessageBox.warning(
+                self,
+                "ExcelSvodka",
+                "Сначала откройте файл Excel."
+            )
+
+            return
+
+        try:
+
+            # Пока только журнал.
+            # После подключения IdleTransferManager
+            # здесь будет реальный перенос простоев.
+
+            self.log_message(
+                f"Перенос простоя: {data}"
+            )
+
+            self.status.setText(
+                "Перенос простоя выполнен"
+            )
+
+        except Exception as e:
+
+            QMessageBox.critical(
+                self,
+                "Ошибка",
+                str(e),
+            )
+
+            self.log_message(
+                f"Ошибка переноса: {e}"
+            )
 
     def on_settings_changed(self, settings):
 
         self.log_message(
             "Настройки сохранены."
         )
+
+    def closeEvent(self, event):
+
+        try:
+
+            if self.excel is not None:
+                self.excel.save()
+
+        except Exception as e:
+
+            QMessageBox.warning(
+                self,
+                "ExcelSvodka",
+                f"Не удалось сохранить файл:\n{e}",
+            )
+
+        event.accept()
