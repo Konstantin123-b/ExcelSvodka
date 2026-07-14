@@ -1,25 +1,25 @@
 from pathlib import Path
-from core.equipment_manager import EquipmentManager
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFileDialog,
-    QComboBox,
-    QDateEdit,
-    QFormLayout,
-    QGroupBox,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QHBoxLayout,
 )
 
-from PySide6.QtCore import QDate
-
+from core.equipment_manager import EquipmentManager
 from core.excel_manager import ExcelManager
+
+from gui.work_tab import WorkTab
+from gui.idle_tab import IdleTab
+from gui.settings_tab import SettingsTab
 
 
 class MainWindow(QMainWindow):
@@ -31,102 +31,78 @@ class MainWindow(QMainWindow):
         self.equipment = None
 
         self.setWindowTitle("ExcelSvodka")
-        self.resize(900, 750)
+        self.resize(1100, 800)
 
         central = QWidget()
         self.setCentralWidget(central)
 
-        main_layout = QVBoxLayout(central)
+        layout = QVBoxLayout(central)
 
         title = QLabel("ExcelSvodka")
+        title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(
             "font-size:26px;font-weight:bold;"
         )
 
-        main_layout.addWidget(title)
+        layout.addWidget(title)
 
-        self.open_button = QPushButton(
-            "Открыть Excel"
-        )
+        top = QHBoxLayout()
 
-        self.open_button.clicked.connect(
-            self.open_excel
-        )
+        self.open_button = QPushButton("Открыть Excel")
+        self.open_button.clicked.connect(self.open_excel)
 
-        main_layout.addWidget(self.open_button)
+        self.file_label = QLabel("Файл не открыт")
 
-        self.file_label = QLabel(
-            "Файл не открыт"
-        )
+        top.addWidget(self.open_button)
+        top.addWidget(self.file_label)
 
-        main_layout.addWidget(self.file_label)
+        layout.addLayout(top)
 
-        group = QGroupBox("Новая работа")
+        self.tabs = QTabWidget()
 
-        form = QFormLayout(group)
+        self.work_tab = WorkTab()
+        self.idle_tab = IdleTab()
+        self.settings_tab = SettingsTab()
 
-        self.date = QDateEdit()
+        self.tabs.addTab(self.work_tab, "Работы")
+        self.tabs.addTab(self.idle_tab, "Простои")
+        self.tabs.addTab(self.settings_tab, "Настройки")
 
-        self.date.setCalendarPopup(True)
+        layout.addWidget(self.tabs)
 
-        self.date.setDate(QDate.currentDate())
+        self.log = QTextEdit()
+        self.log.setReadOnly(True)
+        self.log.setMinimumHeight(170)
 
-        form.addRow("Дата", self.date)
-
-        self.garage = QLineEdit()
-
-        self.garage.textChanged.connect(
-        self.on_garage_changed
-        )
-
-        form.addRow("Гаражный номер", self.garage)
-
-        self.model = QComboBox()
-
-        form.addRow("Модель", self.model)
-
-        self.code = QComboBox()
-
-        self.code.addItems(
-            [
-                "",
-                "ав",
-                "пл",
-                "з",
-                ">",
-            ]
-        )
-
-        form.addRow("Код", self.code)
-
-        self.work = QTextEdit()
-
-        self.work.setFixedHeight(120)
-
-        form.addRow("Работа", self.work)
-
-        self.employees = QLineEdit()
-
-        self.employees.setPlaceholderText(
-            "Иванов, Петров..."
-        )
-
-        form.addRow(
-            "Исполнители",
-            self.employees,
-        )
-
-        self.add_button = QPushButton(
-            "Добавить работу"
-        )
-
-        form.addRow(self.add_button)
-
-        main_layout.addWidget(group)
+        layout.addWidget(self.log)
 
         self.status = QLabel("Готов")
+        layout.addWidget(self.status)
 
-        main_layout.addWidget(self.status)
+        self.work_tab.garage_changed.connect(
+            self.update_models
+        )
+
+        self.idle_tab.garage_changed.connect(
+            self.update_models
+        )
+
+        self.work_tab.add_requested.connect(
+            self.on_add_work
+        )
+
+        self.idle_tab.transfer_requested.connect(
+            self.on_transfer_idle
+        )
+
+        self.settings_tab.settings_changed.connect(
+            self.on_settings_changed
+        )
+
+        self.log_message("Приложение запущено.")
+
+    def log_message(self, text):
+        self.log.append(text)
 
     def open_excel(self):
 
@@ -144,14 +120,18 @@ class MainWindow(QMainWindow):
 
             self.excel.open(filename)
 
-            self.equipment = EquipmentManager(self.excel)
-
-            self.file_label.setText(
-            Path(filename).name
+            self.equipment = EquipmentManager(
+                self.excel
             )
 
-            self.status.setText(
-                "Файл открыт"
+            self.file_label.setText(
+                Path(filename).name
+            )
+
+            self.status.setText("Файл открыт")
+
+            self.log_message(
+                f"Открыт файл: {filename}"
             )
 
         except Exception as e:
@@ -161,16 +141,17 @@ class MainWindow(QMainWindow):
                 "Ошибка",
                 str(e),
             )
-    def on_garage_changed(self):
+
+    def update_models(self, garage):
 
         if self.equipment is None:
             return
 
-        garage = self.garage.text().strip()
-
-        self.model.clear()
+        garage = garage.strip()
 
         if not garage:
+            self.work_tab.set_models([])
+            self.idle_tab.set_models([])
             return
 
         try:
@@ -180,15 +161,44 @@ class MainWindow(QMainWindow):
                 model=None,
             )
 
+            models = []
             added = set()
 
             for machine in machines:
 
-                if machine.model not in added:
+                if machine.model in added:
+                    continue
 
-                    self.model.addItem(machine.model)
+                models.append(machine.model)
+                added.add(machine.model)
 
-                    added.add(machine.model)
+            self.work_tab.set_models(models)
+            self.idle_tab.set_models(models)
 
-        except Exception:
-            pass
+        except Exception as e:
+
+            self.log_message(
+                f"Ошибка поиска техники: {e}"
+            )
+
+    def on_add_work(self, data):
+
+        self.log_message(
+            f"Добавление работы: {data}"
+        )
+
+        # Здесь будет вызов svodka_engine.
+
+    def on_transfer_idle(self, data):
+
+        self.log_message(
+            f"Перенос простоя: {data}"
+        )
+
+        # Здесь будет вызов idle_transfer_manager.
+
+    def on_settings_changed(self, settings):
+
+        self.log_message(
+            "Настройки сохранены."
+        )
