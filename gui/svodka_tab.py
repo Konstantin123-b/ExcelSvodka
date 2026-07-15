@@ -69,6 +69,10 @@ class SvodkaTab(QWidget):
         layout.addLayout(top)
 
         self.info = QLabel()
+        
+        self.info.setWordWrap(True)
+        
+        self.info.setMinimumHeight(90)
 
         layout.addWidget(
             self.info
@@ -203,8 +207,30 @@ class SvodkaTab(QWidget):
                 self.manager.all()
             )
 
+            filename = ""
+
+            if getattr(self.manager.excel, "filename", ""):
+
+                import os
+
+                filename = os.path.basename(
+                self.manager.excel.filename
+                )
+
+            total = len(
+                list(
+                    self.manager.excel.iter_equipment()
+                )
+            )
+
             self.info.setText(
-                f"Загружено записей: {self.manager.count()}"
+                f"""Файл: {filename}
+
+            Дата: {self.current_date()}
+
+            Общее кол-во техники: {total}
+
+            Общее кол-во техники в простое: {self.manager.count()}"""
             )
 
             self.table.resizeColumnsToContents()
