@@ -1,49 +1,42 @@
-from dataclasses import dataclass
-from enum import Enum
+    @staticmethod
+    def _sort_key(record: SvodkaRecord):
+
+        return (
+            record.model.lower(),
+            record.garage_number.lower(),
+        )
 
 
-class MachineState(str, Enum):
-    """
-    Тип записи в суточной сводке.
-    """
+    @staticmethod
+    def _remove_duplicates(
+        records: list[SvodkaRecord],
+    ) -> list[SvodkaRecord]:
 
-    IDLE = ">"
-    ACCIDENT = "ав"
-    PLANNED = "пл"
-    CUSTOMER = "з"
+        unique = {}
 
-    @property
-    def title(self) -> str:
-        return {
-            MachineState.IDLE: "Простой",
-            MachineState.ACCIDENT: "Аварийный ремонт",
-            MachineState.PLANNED: "Плановые работы",
-            MachineState.CUSTOMER: "Работы заказчика",
-        }[self]
+        for record in records:
 
-    @classmethod
-    def from_code(cls, code: str):
-        code = (code or "").strip().lower()
+            key = (
+                record.garage_number.strip().lower(),
+            )
 
-        for state in cls:
-            if state.value == code:
-                return state
+            unique[key] = record
 
-        return None
+        return sorted(
+            unique.values(),
+            key=SvodkaLoader._sort_key,
+        )
 
 
-@dataclass(slots=True)
-class SvodkaRecord:
-    """
-    Одна запись сводки.
-    """
+    def load_unique(
+        self,
+        date_string: str,
+    ) -> list[SvodkaRecord]:
+        """
+        Загружает предыдущий день
+        без повторов.
+        """
 
-    state: MachineState
-
-    garage_number: str
-
-    model: str
-
-    description: str
-
-    employees: str = ""
+        return self._remove_duplicates(
+            self.load(date_string)
+        )
