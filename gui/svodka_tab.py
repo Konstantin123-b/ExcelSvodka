@@ -1,28 +1,22 @@
-from PySide6.QtCore import QDate, Qt
+from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QDateEdit,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
-    QTableWidget,
-    QTableWidgetItem,
+    QTableView,
     QVBoxLayout,
     QWidget,
 )
 
+from gui.models.svodka_table_model import (
+    SvodkaTableModel,
+)
+
 
 class SvodkaTab(QWidget):
-
-    HEADERS = (
-        "Тип",
-        "Модель",
-        "Гаражный №",
-        "Описание",
-        "Наработка",
-        "Исполнители",
-    )
 
     def __init__(self, parent=None):
 
@@ -30,11 +24,21 @@ class SvodkaTab(QWidget):
 
         self.manager = None
 
+        self.model = SvodkaTableModel(self)
+
+        self._build_ui()
+
+    # ---------------------------------------------------------
+
+    def _build_ui(self):
+
         root = QVBoxLayout(self)
 
         group = QGroupBox(
             "Ежедневная сводка"
         )
+
+        root.addWidget(group)
 
         layout = QVBoxLayout(group)
 
@@ -60,40 +64,27 @@ class SvodkaTab(QWidget):
 
         layout.addLayout(top)
 
-        self.info = QLabel(
-            ""
-        )
+        self.info = QLabel()
 
         layout.addWidget(
             self.info
         )
 
-        self.table = QTableWidget()
+        self.table = QTableView()
 
-        self.table.setColumnCount(
-            len(self.HEADERS)
+        self.table.setModel(
+            self.model
         )
 
-        self.table.setHorizontalHeaderLabels(
-            self.HEADERS
+        self.table.setAlternatingRowColors(
+            True
         )
 
-        self.table.setSelectionBehavior(
-            QAbstractItemView.SelectRows
-        )
-
-        self.table.setSelectionMode(
-            QAbstractItemView.SingleSelection
-        )
-
-        self.table.setEditTriggers(
-            QAbstractItemView.DoubleClicked
-            | QAbstractItemView.SelectedClicked
-        )
-
-        self.table.verticalHeader().setVisible(
+        self.table.setSortingEnabled(
             False
         )
+
+        self.table.verticalHeader().hide()
 
         layout.addWidget(
             self.table
@@ -130,10 +121,6 @@ class SvodkaTab(QWidget):
             buttons
         )
 
-        root.addWidget(
-            group
-        )
-
         self.date.dateChanged.connect(
             self.on_date_changed
         )
@@ -151,7 +138,8 @@ class SvodkaTab(QWidget):
         )
 
         self.update_buttons()
-            # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
 
     def set_manager(
         self,
@@ -159,6 +147,8 @@ class SvodkaTab(QWidget):
     ):
 
         self.manager = manager
+
+        self.update_buttons()
 
         self.on_date_changed()
 
@@ -200,80 +190,37 @@ class SvodkaTab(QWidget):
                 self.current_date()
             )
 
-            self.info.setText(
-                f"Автоматически загружены записи за предыдущий день."
+            self.model.set_records(
+                self.manager.all()
             )
 
-            self.refresh()
+            self.info.setText(
+                f"Загружено записей: {self.manager.count()}"
+            )
+
+            self.table.resizeColumnsToContents()
+
+            self.table.horizontalHeader().setStretchLastSection(
+                True
+            )
 
         except Exception as e:
+
+            self.model.clear()
 
             self.info.setText(
                 str(e)
             )
+                # ---------------------------------------------------------
 
-            self.table.setRowCount(0)
+    def selected_row(self) -> int:
 
-    # ---------------------------------------------------------
+        indexes = self.table.selectionModel().selectedRows()
 
-    def refresh(self):
+        if not indexes:
+            return -1
 
-        records = self.manager.all()
-
-        self.table.setRowCount(
-            len(records)
-        )
-
-        for row, record in enumerate(records):
-
-            values = [
-
-                record.state_name,
-
-                record.model,
-
-                record.garage_number,
-
-                record.description,
-
-                record.operating_hours,
-
-                record.employees,
-
-            ]
-
-            for column, value in enumerate(values):
-
-                item = QTableWidgetItem(
-                    str(value)
-                )
-
-                # Модель и гаражный номер
-                # запрещаем редактировать.
-
-                if column in (1, 2):
-
-                    item.setFlags(
-                        item.flags()
-                        & ~Qt.ItemIsEditable
-                    )
-
-                self.table.setItem(
-                    row,
-                    column,
-                    item,
-                )
-                    # ---------------------------------------------------------
-
-    def on_add(self):
-
-        from PySide6.QtWidgets import QMessageBox
-
-        QMessageBox.information(
-            self,
-            "ExcelSvodka",
-            "Окно добавления записи будет подключено следующим этапом.",
-        )
+        return indexes[0].row()
 
     # ---------------------------------------------------------
 
@@ -282,14 +229,25 @@ class SvodkaTab(QWidget):
         if self.manager is None:
             return
 
-        row = self.table.currentRow()
+        row = self.selected_row()
 
         if row < 0:
             return
 
+        result = QMessageBox.question(
+            self,
+            "ExcelSvodka",
+            "Удалить выбранную запись?",
+        )
+
+        if result != QMessageBox.Yes:
+            return
+
         self.manager.remove(row)
 
-        self.refresh()
+        self.model.set_records(
+            self.manager.all()
+        )
 
     # ---------------------------------------------------------
 
@@ -298,14 +256,12 @@ class SvodkaTab(QWidget):
         if self.manager is None:
             return
 
-        from PySide6.QtWidgets import QMessageBox
-
         result = QMessageBox.question(
             self,
             "ExcelSvodka",
             (
-                "Будет полностью сформирована сводка "
-                "на выбранную дату.\n\n"
+                "Будет полностью сформирована "
+                "сводка на выбранную дату.\n\n"
                 "Продолжить?"
             ),
         )
@@ -334,6 +290,46 @@ class SvodkaTab(QWidget):
             )
                 # ---------------------------------------------------------
 
+    def on_add(self):
+
+        from gui.add_record_dialog import AddRecordDialog
+
+        if self.manager is None:
+            return
+
+        dialog = AddRecordDialog(
+            self.manager,
+            self,
+        )
+
+        if not dialog.exec():
+            return
+
+        record = dialog.record()
+
+        try:
+
+            self.manager.add(record)
+
+            self.model.set_records(
+                self.manager.all()
+            )
+
+            self.table.resizeColumnsToContents()
+
+            self.table.horizontalHeader().setStretchLastSection(
+                True
+            )
+
+        except Exception as e:
+
+            QMessageBox.critical(
+                self,
+                "Ошибка",
+                str(e),
+            )
+                # ---------------------------------------------------------
+
     def resizeEvent(self, event):
 
         super().resizeEvent(event)
@@ -342,8 +338,51 @@ class SvodkaTab(QWidget):
 
         header.setStretchLastSection(True)
 
-        self.table.setColumnWidth(0, 170)  # Тип
-        self.table.setColumnWidth(1, 170)  # Модель
-        self.table.setColumnWidth(2, 120)  # Гаражный
-        self.table.setColumnWidth(3, 420)  # Описание
-        self.table.setColumnWidth(4, 140)  # Наработка
+        widths = (
+            170,  # Тип
+            170,  # Модель
+            120,  # Гаражный №
+            420,  # Описание
+            140,  # Наработка
+        )
+
+        for column, width in enumerate(widths):
+
+            self.table.setColumnWidth(
+                column,
+                width,
+            )
+
+    # ---------------------------------------------------------
+
+    def refresh(self):
+        """
+        Полностью обновляет таблицу.
+        """
+
+        if self.manager is None:
+            return
+
+        self.model.set_records(
+            self.manager.all()
+        )
+
+        self.table.resizeRowsToContents()
+
+        self.table.horizontalHeader().setStretchLastSection(
+            True
+        )
+
+    # ---------------------------------------------------------
+
+    def clear(self):
+
+        self.model.clear()
+
+        self.info.clear()
+
+    # ---------------------------------------------------------
+
+    def manager_ready(self) -> bool:
+
+        return self.manager is not None
