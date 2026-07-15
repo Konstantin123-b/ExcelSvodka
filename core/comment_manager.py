@@ -20,45 +20,46 @@ class CommentManager:
 
         return cell.comment.text
 
-   def build(
-    self,
-    work: str,
-    employees,
-) -> str:
+    def build(
+        self,
+        work: str,
+        employees,
+    ) -> str:
 
-    parts = []
+        parts = []
 
-    work = (work or "").strip()
+        work = (work or "").strip()
 
-    if work:
-        parts.append("Работа:")
-        parts.append(work)
+        if work:
+            parts.append("Работа:")
+            parts.append(work)
 
-    if isinstance(employees, str):
-        employees = [
-            x.strip()
-            for x in employees.split(",")
-            if x.strip()
-        ]
+        if isinstance(employees, str):
+            employees = [
+                x.strip()
+                for x in employees.split(",")
+                if x.strip()
+            ]
 
-    elif employees is None:
-        employees = []
+        elif employees is None:
+            employees = []
 
-    if employees:
+        if employees:
 
-        if parts:
-            parts.append("")
+            if parts:
+                parts.append("")
 
-        parts.append("Исполнители:")
-        parts.append(", ".join(employees))
+            parts.append("Исполнители:")
+            parts.append(", ".join(employees))
 
-    return "\n".join(parts)
+        return "\n".join(parts)
+
     def set(
         self,
         row: int,
         column: int,
         work: str,
-        employees: list[str],
+        employees,
     ):
 
         text = self.build(
