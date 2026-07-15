@@ -98,7 +98,7 @@ class SvodkaTab(QWidget):
         layout.addWidget(
             self.table
         )
-                buttons = QHBoxLayout()
+        buttons = QHBoxLayout()
 
         self.add_button = QPushButton(
             "➕ Добавить"
@@ -178,7 +178,7 @@ class SvodkaTab(QWidget):
         self.build_button.setEnabled(
             enabled
         )
-            # ---------------------------------------------------------
+    # ---------------------------------------------------------
 
     def current_date(self) -> str:
 
@@ -220,7 +220,7 @@ class SvodkaTab(QWidget):
             self.info.setText(
                 str(e)
             )
-                # ---------------------------------------------------------
+    # ---------------------------------------------------------
 
     def selected_row(self) -> int:
 
@@ -297,7 +297,7 @@ class SvodkaTab(QWidget):
                 "Ошибка",
                 str(e),
             )
-                # ---------------------------------------------------------
+    # ---------------------------------------------------------
 
     def on_add(self):
 
@@ -337,7 +337,7 @@ class SvodkaTab(QWidget):
                 "Ошибка",
                 str(e),
             )
-                # ---------------------------------------------------------
+    # ---------------------------------------------------------
 
     def resizeEvent(self, event):
 
