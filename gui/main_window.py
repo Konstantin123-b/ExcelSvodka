@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFileDialog,
     QLabel,
+    QHBoxLayout,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -11,14 +12,13 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QHBoxLayout,
 )
 
 from core.excel_manager import ExcelManager
 from core.svodka_manager import SvodkaManager
 
-from gui.svodka_tab import SvodkaTab
 from gui.settings_tab import SettingsTab
+from gui.svodka_tab import SvodkaTab
 
 
 class MainWindow(QMainWindow):
@@ -27,63 +27,43 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.excel = ExcelManager()
-
         self.manager = None
 
         self.setWindowTitle("ExcelSvodka 2.0")
-
         self.resize(1400, 900)
 
         central = QWidget()
-
         self.setCentralWidget(central)
 
         layout = QVBoxLayout(central)
 
         title = QLabel("ExcelSvodka 2.0")
-
         title.setAlignment(Qt.AlignCenter)
-
         title.setStyleSheet(
             """
-            QLabel{
-                font-size:28px;
-                font-weight:bold;
+            QLabel {
+                font-size: 28px;
+                font-weight: bold;
             }
             """
         )
-
         layout.addWidget(title)
 
         top = QHBoxLayout()
 
-        self.open_button = QPushButton(
-            "Открыть Excel"
-        )
+        self.open_button = QPushButton("Открыть Excel")
+        self.open_button.clicked.connect(self.open_excel)
 
-        self.open_button.clicked.connect(
-            self.open_excel
-        )
+        self.file_label = QLabel("Файл не открыт")
 
-        self.file_label = QLabel(
-            "Файл не открыт"
-        )
-
-        top.addWidget(
-            self.open_button
-        )
-
-        top.addWidget(
-            self.file_label,
-            1,
-        )
+        top.addWidget(self.open_button)
+        top.addWidget(self.file_label, 1)
 
         layout.addLayout(top)
 
         self.tabs = QTabWidget()
 
         self.svodka_tab = SvodkaTab()
-
         self.settings_tab = SettingsTab()
 
         self.tabs.addTab(
@@ -96,27 +76,16 @@ class MainWindow(QMainWindow):
             "Настройки",
         )
 
-        layout.addWidget(
-            self.tabs
-        )
+        layout.addWidget(self.tabs)
 
         self.log = QTextEdit()
-
         self.log.setReadOnly(True)
-
         self.log.setMinimumHeight(180)
 
-        layout.addWidget(
-            self.log
-        )
+        layout.addWidget(self.log)
 
-        self.status = QLabel(
-            "Готов"
-        )
-
-        layout.addWidget(
-            self.status
-        )
+        self.status = QLabel("Готов")
+        layout.addWidget(self.status)
 
         self.settings_tab.settings_changed.connect(
             self.on_settings_changed
@@ -125,13 +94,13 @@ class MainWindow(QMainWindow):
         self.log_message(
             "ExcelSvodka 2.0 запущена."
         )
-            # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
 
     def log_message(
         self,
         text: str,
     ):
-
         self.log.append(text)
 
     # ---------------------------------------------------------
@@ -174,11 +143,7 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
 
-            QMessageBox.critical(
-                self,
-                "Ошибка",
-                str(e),
-            )
+            self.show_error(str(e))
 
     # ---------------------------------------------------------
 
@@ -186,102 +151,6 @@ class MainWindow(QMainWindow):
         self,
         settings,
     ):
-
-        self.log_message(
-            "Настройки сохранены."
-        )
-
-    # ---------------------------------------------------------
-
-    def show_error(
-        self,
-        text: str,
-    ):
-
-        QMessageBox.critical(
-            self,
-            "ExcelSvodka",
-            text,
-        )
-
-        self.log_message(text)
-
-    # ---------------------------------------------------------
-
-    def show_info(
-        self,
-        text: str,
-    ):
-
-        QMessageBox.information(
-            self,
-            "ExcelSvodka",
-            text,
-        )
-
-        self.log_message(text)
-            # ---------------------------------------------------------
-
-    def log_message(
-        self,
-        text: str,
-    ):
-
-        self.log.append(text)
-
-    # ---------------------------------------------------------
-
-    def open_excel(self):
-
-        filename, _ = QFileDialog.getOpenFileName(
-            self,
-            "Выберите файл Excel",
-            "",
-            "Excel (*.xlsx *.xlsm)",
-        )
-
-        if not filename:
-            return
-
-        try:
-
-            self.excel.open(filename)
-
-            self.manager = SvodkaManager(
-                self.excel
-            )
-
-            self.svodka_tab.set_manager(
-                self.manager
-            )
-
-            self.file_label.setText(
-                Path(filename).name
-            )
-
-            self.status.setText(
-                "Excel открыт"
-            )
-
-            self.log_message(
-                f"Открыт файл:\n{filename}"
-            )
-
-        except Exception as e:
-
-            QMessageBox.critical(
-                self,
-                "Ошибка",
-                str(e),
-            )
-
-    # ---------------------------------------------------------
-
-    def on_settings_changed(
-        self,
-        settings,
-    ):
-
         self.log_message(
             "Настройки сохранены."
         )
