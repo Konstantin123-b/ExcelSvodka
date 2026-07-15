@@ -83,12 +83,22 @@ class SvodkaTab(QWidget):
         self.table.setModel(
             self.model
         )
+        from PySide6.QtWidgets import QHeaderView
+        
+        header = self.table.horizontalHeader()
+
+        header.setStretchLastSection(True)
+
+        header.setSectionResizeMode(
+            3,
+            QHeaderView.Stretch,
+        )
 
         self.table.setItemDelegateForColumn(
             0,
             MachineStateDelegate(self.table),
         )
-
+        
         self.table.setAlternatingRowColors(
             True
         )
@@ -97,7 +107,11 @@ class SvodkaTab(QWidget):
             False
         )
 
-        self.table.verticalHeader().hide()
+        self.table.verticalHeader().setVisible(True)
+
+        self.table.verticalHeader().setDefaultSectionSize(24)
+
+        self.table.verticalHeader().setMinimumWidth(45)
 
         layout.addWidget(
             self.table
