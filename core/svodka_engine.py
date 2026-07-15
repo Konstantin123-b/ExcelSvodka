@@ -53,11 +53,13 @@ class SvodkaEngine:
 
         for change in self.changes.all():
 
+            cell_code = ">" if str(change.code).strip() == ">" else ""
+
             row, column = self.editor.write_code(
                 garage_number=change.garage_number,
                 model=change.model,
                 date=change.date,
-                code=change.code,
+                code=cell_code,
             )
 
             self.comments.set(
