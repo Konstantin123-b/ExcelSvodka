@@ -1,42 +1,76 @@
-    @staticmethod
-    def _sort_key(record: SvodkaRecord):
-
-        return (
-            record.model.lower(),
-            record.garage_number.lower(),
-        )
+from dataclasses import dataclass
+from enum import Enum
 
 
-    @staticmethod
-    def _remove_duplicates(
-        records: list[SvodkaRecord],
-    ) -> list[SvodkaRecord]:
+class MachineState(str, Enum):
+    """
+    Состояние машины в ежедневной сводке.
+    """
 
-        unique = {}
+    IDLE = ">"
+    ACCIDENT = "ав"
+    PLANNED = "пл"
+    CUSTOMER = "з"
 
-        for record in records:
+    @property
+    def title(self) -> str:
 
-            key = (
-                record.garage_number.strip().lower(),
-            )
+        return {
+            MachineState.IDLE: "Простой",
+            MachineState.ACCIDENT: "Аварийный ремонт",
+            MachineState.PLANNED: "Плановые работы",
+            MachineState.CUSTOMER: "Работы заказчика",
+        }[self]
 
-            unique[key] = record
+    @classmethod
+    def from_code(
+        cls,
+        code: str,
+    ):
 
-        return sorted(
-            unique.values(),
-            key=SvodkaLoader._sort_key,
-        )
+        code = (code or "").strip().lower()
+
+        for state in cls:
+
+            if state.value == code:
+                return state
+
+        return None
+        @dataclass(slots=True)
+class Equipment:
+    """
+    Описание единицы техники.
+    """
+
+    row: int
+
+    model: str
+
+    garage_number: str
 
 
-    def load_unique(
-        self,
-        date_string: str,
-    ) -> list[SvodkaRecord]:
-        """
-        Загружает предыдущий день
-        без повторов.
-        """
+@dataclass(slots=True)
+class SvodkaRecord:
+    """
+    Одна запись ежедневной сводки.
+    """
 
-        return self._remove_duplicates(
-            self.load(date_string)
-        )
+    state: MachineState
+
+    garage_number: str
+
+    model: str
+
+    description: str = ""
+
+    operating_hours: str = ""
+
+    employees: str = ""
+
+    @property
+    def code(self) -> str:
+        return self.state.value
+
+    @property
+    def state_name(self) -> str:
+        return self.state.title
