@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from PySide6.QtCore import (
     QAbstractTableModel,
     QModelIndex,
@@ -21,6 +23,18 @@ class SvodkaTableModel(QAbstractTableModel):
         "Исполнители",
     )
 
+    STATE_NAMES = {
+        MachineState.IDLE: "Простой",
+        MachineState.ACCIDENT: "Аварийный ремонт",
+        MachineState.PLANNED: "Плановые работы",
+        MachineState.CUSTOMER: "Работы заказчика",
+    }
+
+    NAME_TO_STATE = {
+        value: key
+        for key, value in STATE_NAMES.items()
+    }
+
     def __init__(self, parent=None):
 
         super().__init__(parent)
@@ -36,7 +50,7 @@ class SvodkaTableModel(QAbstractTableModel):
 
         self.beginResetModel()
 
-        self.records = records
+        self.records = list(records)
 
         self.endResetModel()
 
@@ -74,7 +88,8 @@ class SvodkaTableModel(QAbstractTableModel):
             return self.HEADERS[section]
 
         return section + 1
-          # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
 
     def data(
         self,
@@ -87,29 +102,33 @@ class SvodkaTableModel(QAbstractTableModel):
 
         record = self.records[index.row()]
 
-        if role in (
+        if role not in (
             Qt.DisplayRole,
             Qt.EditRole,
         ):
+            return None
 
-            column = index.column()
+        match index.column():
 
-            if column == 0:
-                return record.state.title
+            case 0:
+                return self.STATE_NAMES.get(
+                    record.state,
+                    "",
+                )
 
-            if column == 1:
+            case 1:
                 return record.model
 
-            if column == 2:
+            case 2:
                 return record.garage_number
 
-            if column == 3:
+            case 3:
                 return record.description
 
-            if column == 4:
+            case 4:
                 return record.operating_hours
 
-            if column == 5:
+            case 5:
                 return record.employees
 
         return None
@@ -129,8 +148,6 @@ class SvodkaTableModel(QAbstractTableModel):
             | Qt.ItemIsSelectable
         )
 
-        # Тип, описание, наработка и исполнители
-        # можно редактировать.
         if index.column() in (
             0,
             3,
@@ -140,7 +157,8 @@ class SvodkaTableModel(QAbstractTableModel):
             flags |= Qt.ItemIsEditable
 
         return flags
-          # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
 
     def setData(
         self,
@@ -159,37 +177,28 @@ class SvodkaTableModel(QAbstractTableModel):
 
         value = str(value).strip()
 
-        column = index.column()
+        match index.column():
 
-        if column == 0:
+            case 0:
 
-            mapping = {
-                "Простой": MachineState.IDLE,
-                "Аварийный ремонт": MachineState.ACCIDENT,
-                "Плановые работы": MachineState.PLANNED,
-                "Работы заказчика": MachineState.CUSTOMER,
-            }
+                state = self.NAME_TO_STATE.get(value)
 
-            if value not in mapping:
+                if state is None:
+                    return False
+
+                record.state = state
+
+            case 3:
+                record.description = value
+
+            case 4:
+                record.operating_hours = value
+
+            case 5:
+                record.employees = value
+
+            case _:
                 return False
-
-            record.state = mapping[value]
-
-        elif column == 3:
-
-            record.description = value
-
-        elif column == 4:
-
-            record.operating_hours = value
-
-        elif column == 5:
-
-            record.employees = value
-
-        else:
-
-            return False
 
         self.dataChanged.emit(
             index,
@@ -210,7 +219,8 @@ class SvodkaTableModel(QAbstractTableModel):
     ) -> SvodkaRecord:
 
         return self.records[row]
-          # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
 
     def add_record(
         self,
@@ -265,4 +275,4 @@ class SvodkaTableModel(QAbstractTableModel):
         self,
     ) -> list[SvodkaRecord]:
 
-        return self.records
+        return deepcopy(self.records)
