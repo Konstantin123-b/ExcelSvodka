@@ -34,6 +34,8 @@ class SvodkaManager:
 
         self.dates = DateManager(excel)
 
+        self.equipment = EquipmentManager(excel)
+
         self.records: list[SvodkaRecord] = []
 
     # ---------------------------------------------------------
