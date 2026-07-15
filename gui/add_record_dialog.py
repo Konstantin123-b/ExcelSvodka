@@ -146,4 +146,24 @@ class AddRecordDialog(QDialog):
         mapping = {
             MachineState.IDLE: 0,
             MachineState.ACCIDENT: 1,
-            MachineState.PLANNED
+            MachineState.PLANNED: 2,
+            MachineState.CUSTOMER: 3,
+        }
+
+        self.state.setCurrentIndex(mapping[record.state])
+        self.garage.setText(record.garage_number)
+        self.model.setText(record.model)
+        self.description.setPlainText(record.description)
+        self.operating_hours.setText(record.operating_hours)
+        self.employees.setPlainText(record.employees)
+
+    # ---------------------------------------------------------
+
+    def clear(self):
+
+        self.state.setCurrentIndex(0)
+        self.garage.clear()
+        self.model.setText("-")
+        self.description.clear()
+        self.operating_hours.clear()
+        self.employees.clear()
