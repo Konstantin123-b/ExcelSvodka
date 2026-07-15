@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from core.models import MachineState, SvodkaRecord
+from core.models import (
+    MachineState,
+    SvodkaRecord,
+)
 
 
 class SvodkaLoader:
-    """
-    Загружает записи предыдущего дня из Excel.
-    """
 
     def __init__(self, excel):
 
@@ -48,7 +48,6 @@ class SvodkaLoader:
 
             if state is None:
                 continue
-
             description = ""
             operating_hours = ""
             employees = ""
@@ -78,153 +77,117 @@ class SvodkaLoader:
                     operating_hours=operating_hours,
 
                     employees=employees,
+
                 )
+
             )
 
-        records = self._remove_duplicates(
-            records
+        return self._sort_records(
+
+            self._remove_duplicates(
+                records
+            )
+
         )
 
-        return self._sort_records(
-            records
-        )
-            # ---------------------------------------------------------
+    # ---------------------------------------------------------
 
     @staticmethod
     def previous_day(
         date_string: str,
     ) -> str:
-        """
-        Возвращает предыдущую дату.
-        """
 
         current = datetime.strptime(
             date_string,
             "%d.%m.%Y",
         )
 
-        previous = current - timedelta(days=1)
+        previous = current - timedelta(
+            days=1
+        )
 
         return previous.strftime(
             "%d.%m.%Y"
         )
-
     # ---------------------------------------------------------
 
     @staticmethod
     def _parse_comment(
         text: str,
     ) -> tuple[str, str, str]:
-        """
-        Разбирает комментарий Excel.
-
-        Формат:
-
-        Описание
-
-        Наработка: 12345
-
-        Иванов, Петров
-        """
-
-        text = text.replace(
-            "\r\n",
-            "\n",
-        ).strip()
-
-        if not text:
-            return "", "", ""
 
         description = ""
         operating_hours = ""
         employees = ""
 
-        blocks = [
-            block.strip()
-            for block in text.split("\n\n")
-            if block.strip()
+        if not text:
+            return (
+                description,
+                operating_hours,
+                employees,
+            )
+
+        lines = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip()
         ]
 
-        for block in blocks:
+        if len(lines) >= 1:
+            description = lines[0]
 
-            if block.startswith("Наработка:"):
+        if len(lines) >= 2:
+            operating_hours = lines[1]
 
-                operating_hours = (
-                    block.replace(
-                        "Наработка:",
-                        "",
-                    ).strip()
-                )
-
-                continue
-
-            if not description:
-
-                description = block
-
-            else:
-
-                employees = block
+        if len(lines) >= 3:
+            employees = "\n".join(
+                lines[2:]
+            )
 
         return (
             description,
             operating_hours,
             employees,
         )
-            # ---------------------------------------------------------
-
-    @staticmethod
-    def _remove_duplicates(
-        records: list[SvodkaRecord],
-    ) -> list[SvodkaRecord]:
-        """
-        Удаляет дубликаты по гаражному номеру.
-        Последняя запись имеет приоритет.
-        """
-
-        unique: dict[str, SvodkaRecord] = {}
-
-        for record in records:
-
-            key = record.garage_number.strip().lower()
-
-            unique[key] = record
-
-        return list(unique.values())
 
     # ---------------------------------------------------------
 
     @staticmethod
     def _sort_records(
-        records: list[SvodkaRecord],
-    ) -> list[SvodkaRecord]:
-        """
-        Сортирует записи по модели и
-        гаражному номеру.
-        """
+        records,
+    ):
 
-        records.sort(
+        return sorted(
+            records,
+            key=lambda r: (
+                r.state.value,
+                r.model,
+                r.garage_number,
+            ),
+        )
+    # ---------------------------------------------------------
 
-            key=lambda record: (
+    @staticmethod
+    def _remove_duplicates(
+        records,
+    ):
 
-                record.model.lower(),
+        result = []
 
-                record.garage_number.lower(),
+        seen = set()
 
+        for record in records:
+
+            key = (
+                record.garage_number,
+                record.state,
             )
-        )
 
-        return records
-            # ---------------------------------------------------------
+            if key in seen:
+                continue
 
-    def load_unique(
-        self,
-        date_string: str,
-    ) -> list[SvodkaRecord]:
-        """
-        Совместимость со старым SvodkaManager.
-        """
+            seen.add(key)
 
-        return self.load(
-            date_string
-        )
+            result.append(record)
+
+        return result
