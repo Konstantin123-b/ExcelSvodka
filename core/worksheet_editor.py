@@ -46,11 +46,18 @@ class WorksheetEditor:
             column=column,
         )
 
-        value = str(code).strip()
+        value = str(code).strip().lower()
 
-        cell.value = value
+        # В ячейке оставляем только ">".
+        # Все остальные обозначения ("ав", "з", "пл" и т.д.)
+        # хранятся только в примечании.
 
-        cell.fill = StyleManager.get_fill(value)
+        if value == ">":
+            cell.value = ">"
+            cell.fill = StyleManager.get_fill(value)
+        else:
+            cell.value = ""
+            cell.fill = StyleManager.get_fill("")
 
         return machine.row, column
 
