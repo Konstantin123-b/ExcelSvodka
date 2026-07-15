@@ -34,8 +34,6 @@ class SvodkaManager:
 
         self.dates = DateManager(excel)
 
-        self.equipment = EquipmentManager(excel)
-
         self.records: list[SvodkaRecord] = []
 
     # ---------------------------------------------------------
@@ -260,10 +258,7 @@ class SvodkaManager:
         )
 
         # В ячейке отображается только простой (>).
-        if record.state == MachineState.IDLE:
-            cell.value = ">"
-        else:
-            cell.value = ""
+        cell.value = record.code
 
         # Цвет зависит от типа записи.
         cell.fill = StyleManager.get_fill(
