@@ -1,26 +1,43 @@
 from pathlib import Path
+from datetime import datetime
 
 from openpyxl import load_workbook
+from openpyxl.comments import Comment
+
 from core.models import Equipment
-from datetime import datetime
 
 
 class ExcelManager:
     """
-    Работа с книгой Excel.
+    Центральный класс работы с Excel.
     """
 
     TARGET_SHEET = "График по работам"
 
-    def __init__(self):
-        self.filename = ""
-        self.workbook = None
-        self.worksheet = None
+    DATE_ROW = 9
 
-    def open(self, filename: str):
+    MODEL_COLUMN = 4
+
+    GARAGE_COLUMN = 6
+
+    def __init__(self):
+
+        self.filename = ""
+
+        self.workbook = None
+
+        self.worksheet = None
+            # ---------------------------------------------------------
+
+    def open(
+        self,
+        filename: str,
+    ):
+
         path = Path(filename)
 
         if not path.exists():
+
             raise FileNotFoundError(
                 f"Файл не найден:\n{filename}"
             )
@@ -33,47 +50,155 @@ class ExcelManager:
         )
 
         if self.TARGET_SHEET not in self.workbook.sheetnames:
+
             raise RuntimeError(
                 f"Лист '{self.TARGET_SHEET}' отсутствует."
             )
 
-        self.worksheet = self.workbook[self.TARGET_SHEET]
+        self.worksheet = self.workbook[
+            self.TARGET_SHEET
+        ]
+
+    # ---------------------------------------------------------
+
+    def save(
+        self,
+        filename: str | None = None,
+    ):
+
+        if filename is None:
+            filename = self.filename
+
+        self.workbook.save(filename)
+
+    # ---------------------------------------------------------
 
     def close(self):
+
         self.workbook = None
+
         self.worksheet = None
+
+        self.filename = ""
+
+    # ---------------------------------------------------------
 
     @property
     def opened(self):
+
         return self.workbook is not None
+
+    # ---------------------------------------------------------
 
     @property
     def rows(self):
+
         return self.worksheet.max_row
+
+    # ---------------------------------------------------------
 
     @property
     def columns(self):
-        return self.worksheet.max_column
 
-    def cell(self, row: int, column: int):
-        """
-        Возвращает значение ячейки.
-        """
+        return self.worksheet.max_column
+            # ---------------------------------------------------------
+
+    def cell(
+        self,
+        row: int,
+        column: int,
+    ):
+
         return self.worksheet.cell(
             row=row,
             column=column,
         ).value
 
-    def find_first_row(self):
+    # ---------------------------------------------------------
+
+    def set_cell(
+        self,
+        row: int,
+        column: int,
+        value,
+    ):
+
+        self.worksheet.cell(
+            row=row,
+            column=column,
+        ).value = value
+
+    # ---------------------------------------------------------
+
+    def set_fill(
+        self,
+        row: int,
+        column: int,
+        fill,
+    ):
+
+        self.worksheet.cell(
+            row=row,
+            column=column,
+        ).fill = fill
+
+    # ---------------------------------------------------------
+
+    def set_comment(
+        self,
+        row: int,
+        column: int,
+        text: str,
+        author: str = "ExcelSvodka",
+    ):
+
+        if not text:
+
+            self.clear_comment(
+                row,
+                column,
+            )
+
+            return
+
+        self.worksheet.cell(
+            row=row,
+            column=column,
+        ).comment = Comment(
+            text=text,
+            author=author,
+        )
+
+    # ---------------------------------------------------------
+
+    def clear_comment(
+        self,
+        row: int,
+        column: int,
+    ):
+
+        self.worksheet.cell(
+            row=row,
+            column=column,
+        ).comment = None
+            # ---------------------------------------------------------
+
+    def find_first_row(self) -> int:
         """
-        Находит первую строку техники.
-        D = модель
-        F = гаражный номер
+        Возвращает первую строку с техникой.
         """
+
         for row in range(1, self.rows + 1):
 
-            model = self.cell(row, 4)
-            garage = self.cell(row, 6)
+            model = self.cell(
+                row,
+                self.MODEL_COLUMN,
+            )
+
+            garage = self.cell(
+                row,
+                self.GARAGE_COLUMN,
+            )
 
             if model and garage:
                 return row
@@ -82,63 +207,85 @@ class ExcelManager:
             "Не удалось определить первую строку техники."
         )
 
-    def find_by_garage_number(self, garage_number: str):
+    # ---------------------------------------------------------
+
+    def iter_equipment(self):
         """
-        Возвращает список строк,
-        соответствующих гаражному номеру.
+        Итератор по всей технике.
         """
+
+        start = self.find_first_row()
+
+        for row in range(
+            start,
+            self.rows + 1,
+        ):
+
+            model = self.cell(
+                row,
+                self.MODEL_COLUMN,
+            )
+
+            garage = self.cell(
+                row,
+                self.GARAGE_COLUMN,
+            )
+
+            if not garage:
+                continue
+
+            yield Equipment(
+                row=row,
+                model=str(model).strip(),
+                garage_number=str(garage).strip(),
+            )
+
+    # ---------------------------------------------------------
+
+    def find_by_garage_number(
+        self,
+        garage_number: str,
+    ) -> list[Equipment]:
+
+        garage_number = garage_number.strip()
 
         result = []
 
-        start_row = self.find_first_row()
+        for equipment in self.iter_equipment():
 
-        for row in range(start_row, self.rows + 1):
+            if equipment.garage_number == garage_number:
 
-            value = self.cell(row, 6)
+                result.append(equipment)
 
-            if value is None:
-                continue
+        return result
+            # ---------------------------------------------------------
 
-            if str(value).strip() == str(garage_number).strip():
-                result.append(row)
-
-        return result  
-    def get_equipment(self, garage_number: str):
+    def find_date_column(
+        self,
+        date_string: str,
+    ) -> int:
         """
-        Возвращает найденную технику.
-        """
-
-        rows = self.find_by_garage_number(garage_number)
-
-        equipment = []
-
-        for row in rows:
-
-            equipment.append(
-                Equipment(
-                    row=row,
-                    model=str(self.cell(row, 4)),
-                    garage_number=str(self.cell(row, 6)),
-                )
-            )
-
-        return equipment
-    from datetime import datetime
-
-    def find_date_column(self, date_string: str):
-        """
-        Возвращает номер столбца для указанной даты.
+        Возвращает номер столбца
+        для указанной даты.
         """
 
         target = datetime.strptime(
             date_string,
-            "%d.%m.%Y"
+            "%d.%m.%Y",
         ).date()
 
-        # В вашей книге даты находятся в 9-й строке.
-        for column in range(1, self.columns + 1):
+        for column in range(
+            1,
+            self.columns + 1,
+        ):
 
-            value = self.cell(9, column)
+            value = self.cell(
+                self.DATE_ROW,
+                column,
+            )
+
+            if value is None:
+                continue
 
             if hasattr(value, "date"):
 
@@ -148,48 +295,112 @@ class ExcelManager:
         raise RuntimeError(
             f"Дата {date_string} не найдена."
         )
-    def find_target_cell(self, garage_number: str, date_string: str):
+
+    # ---------------------------------------------------------
+
+    def find_target_cell(
+        self,
+        garage_number: str,
+        date_string: str,
+    ) -> tuple[int, int]:
         """
-        Возвращает координаты нужной ячейки.
+        Возвращает координаты ячейки
+        (row, column).
         """
 
-        rows = self.find_by_garage_number(garage_number)
+        equipment = self.find_by_garage_number(
+            garage_number
+        )
 
-        if not rows:
+        if not equipment:
+
             raise RuntimeError(
-                f"Техника №{garage_number} не найдена."
+                f"Машина №{garage_number} не найдена."
             )
 
-        if len(rows) > 1:
+        if len(equipment) > 1:
+
             raise RuntimeError(
-                "Найдено несколько машин с таким гаражным номером."
+                f"Найдено несколько машин с гаражным номером {garage_number}."
             )
 
-        column = self.find_date_column(date_string)
+        column = self.find_date_column(
+            date_string
+        )
 
-        return rows[0], column 
-    def set_cell(self, row: int, column: int, value):
-        """
-        Записывает значение в ячейку.
-        """
-        self.worksheet.cell(
+        return (
+            equipment[0].row,
+            column,
+        )
+            # ---------------------------------------------------------
+
+    def equipment_exists(
+        self,
+        garage_number: str,
+    ) -> bool:
+
+        return len(
+            self.find_by_garage_number(
+                garage_number
+            )
+        ) > 0
+
+    # ---------------------------------------------------------
+
+    def get_equipment(
+        self,
+        garage_number: str,
+    ) -> Equipment:
+
+        equipment = self.find_by_garage_number(
+            garage_number
+        )
+
+        if not equipment:
+
+            raise RuntimeError(
+                f"Машина №{garage_number} не найдена."
+            )
+
+        if len(equipment) > 1:
+
+            raise RuntimeError(
+                f"Найдено несколько машин с гаражным номером {garage_number}."
+            )
+
+        return equipment[0]
+
+    # ---------------------------------------------------------
+
+    def get_comment(
+        self,
+        row: int,
+        column: int,
+    ) -> str:
+
+        comment = self.worksheet.cell(
             row=row,
-            column=column
-        ).value = value
+            column=column,
+        ).comment
 
-    def save(self, filename: str | None = None):
-        """
-        Сохраняет книгу.
-        """
+        if comment is None:
+            return ""
 
-        if filename is None:
-            filename = self.filename
+        return comment.text
 
-        self.workbook.save(filename)
-    def set_fill(self, row: int, column: int, fill):
+    # ---------------------------------------------------------
 
-        self.worksheet.cell(
+    def clear_cell(
+        self,
+        row: int,
+        column: int,
+    ):
+
+        cell = self.worksheet.cell(
             row=row,
-            column=column
-        ).fill = fill  
-          
+            column=column,
+        )
+
+        cell.value = None
+
+        cell.comment = None
