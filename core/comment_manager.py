@@ -1,14 +1,22 @@
 from openpyxl.comments import Comment
 
+from core.models import SvodkaRecord
+
 
 class CommentManager:
+    """
+    Работа с примечаниями Excel.
+    """
 
     AUTHOR = "ExcelSvodka"
 
     def __init__(self, excel):
+
         self.excel = excel
 
-    def get(self, row: int, column: int):
+    # ---------------------------------------------------------
+
+    def get(self, row: int, column: int) -> str:
 
         cell = self.excel.worksheet.cell(
             row=row,
@@ -20,52 +28,72 @@ class CommentManager:
 
         return cell.comment.text
 
+    # ---------------------------------------------------------
+
+    def clear(self, row: int, column: int):
+
+        self.excel.worksheet.cell(
+            row=row,
+            column=column,
+        ).comment = None
+
+    # ---------------------------------------------------------
+
     def build(
         self,
-        work: str,
-        employees,
+        record: SvodkaRecord,
     ) -> str:
+        """
+        Формирует текст примечания.
+
+        Формат:
+
+        Замена двигателя
+
+        Наработка: 18452 м/ч
+
+        Иванов, Петров
+        """
 
         parts = []
 
-        work = (work or "").strip()
+        description = record.description.strip()
 
-        if work:
-            parts.append("Работа:")
-            parts.append(work)
+        if description:
+            parts.append(description)
 
-        if isinstance(employees, str):
-            employees = [
-                x.strip()
-                for x in employees.split(",")
-                if x.strip()
-            ]
+        operating_hours = record.operating_hours.strip()
 
-        elif employees is None:
-            employees = []
+        if operating_hours:
+
+            if parts:
+                parts.append("")
+
+            parts.append(
+                f"Наработка: {operating_hours}"
+            )
+
+        employees = record.employees.strip()
 
         if employees:
 
             if parts:
                 parts.append("")
 
-            parts.append("Исполнители:")
-            parts.append(", ".join(employees))
+            parts.append(employees)
 
         return "\n".join(parts)
+
+    # ---------------------------------------------------------
 
     def set(
         self,
         row: int,
         column: int,
-        work: str,
-        employees,
+        record: SvodkaRecord,
     ):
 
-        text = self.build(
-            work,
-            employees,
-        )
+        text = self.build(record)
 
         cell = self.excel.worksheet.cell(
             row=row,
@@ -82,3 +110,69 @@ class CommentManager:
         else:
 
             cell.comment = None
+
+    # ---------------------------------------------------------
+
+    def parse(
+        self,
+        row: int,
+        column: int,
+    ) -> tuple[str, str, str]:
+        """
+        Возвращает
+
+        description,
+        operating_hours,
+        employees
+        """
+
+        text = self.get(
+            row,
+            column,
+        ).replace(
+            "\r\n",
+            "\n",
+        ).strip()
+
+        if not text:
+            return "", "", ""
+
+        description = ""
+        operating_hours = ""
+        employees = ""
+
+        blocks = [
+            x.strip()
+            for x in text.split("\n\n")
+            if x.strip()
+        ]
+
+        for block in blocks:
+
+            if block.startswith("Наработка:"):
+
+                operating_hours = (
+                    block.replace(
+                        "Наработка:",
+                        "",
+                    )
+                    .strip()
+                )
+
+                continue
+
+            if "," in block:
+
+                employees = block
+
+                continue
+
+            if not description:
+
+                description = block
+
+        return (
+            description,
+            operating_hours,
+            employees,
+        )
