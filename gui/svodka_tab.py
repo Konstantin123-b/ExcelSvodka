@@ -1,23 +1,19 @@
+from pathlib import Path
+
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
-    QDateEdit,
-    QGroupBox,
     QHBoxLayout,
-    QLabel,
     QMessageBox,
-    QPushButton,
-    QTableView,
     QVBoxLayout,
     QWidget,
 )
 
-from gui.models.svodka_table_model import (
-    SvodkaTableModel,
-)
-
-from gui.delegates.machine_state_delegate import (
-    MachineStateDelegate,
-)
+from gui.add_record_dialog import AddRecordDialog
+from gui.models.svodka_table_model import SvodkaTableModel
+from gui.widgets.date_selector import DateSelector
+from gui.widgets.info_panel import InfoPanel
+from gui.widgets.svodka_table import SvodkaTable
+from gui.widgets.svodka_toolbar import SvodkaToolbar
 
 
 class SvodkaTab(QWidget):
@@ -28,7 +24,7 @@ class SvodkaTab(QWidget):
 
         self.manager = None
 
-        self.model = SvodkaTableModel(self)
+        self.model = SvodkaTableModel()
 
         self._build_ui()
 
@@ -36,137 +32,49 @@ class SvodkaTab(QWidget):
 
     def _build_ui(self):
 
-        root = QVBoxLayout(self)
+        layout = QVBoxLayout(self)
 
-        group = QGroupBox(
-            "Ежедневная сводка"
-        )
+        self.info_panel = InfoPanel()
 
-        root.addWidget(group)
+        layout.addWidget(self.info_panel)
 
-        layout = QVBoxLayout(group)
+        self.date_selector = DateSelector()
 
-        top = QHBoxLayout()
+        layout.addWidget(self.date_selector)
 
-        top.addWidget(
-            QLabel("Дата")
-        )
-
-        self.date = QDateEdit()
-
-        self.date.setCalendarPopup(True)
-
-        self.date.setDate(
-            QDate.currentDate()
-        )
-
-        top.addWidget(
-            self.date
-        )
-
-        top.addStretch()
-
-        layout.addLayout(top)
-
-        self.info = QLabel()
-        
-        self.info.setWordWrap(True)
-        
-        self.info.setMinimumHeight(90)
-
-        layout.addWidget(
-            self.info
-        )
-
-        self.table = QTableView()
+        self.table = SvodkaTable()
 
         self.table.setModel(
             self.model
         )
-        from PySide6.QtWidgets import QHeaderView
-        
-        header = self.table.horizontalHeader()
-
-        header.setStretchLastSection(True)
-
-        header.setSectionResizeMode(
-            3,
-            QHeaderView.Stretch,
-        )
-
-        self.table.setItemDelegateForColumn(
-            0,
-            MachineStateDelegate(self.table),
-        )
-        
-        self.table.setAlternatingRowColors(
-            True
-        )
-
-        self.table.setSortingEnabled(
-            False
-        )
-
-        self.table.verticalHeader().setVisible(True)
-
-        self.table.verticalHeader().setDefaultSectionSize(24)
-
-        self.table.verticalHeader().setMinimumWidth(45)
 
         layout.addWidget(
-            self.table
-        )
-        buttons = QHBoxLayout()
-
-        self.add_button = QPushButton(
-            "➕ Добавить"
+            self.table,
+            1,
         )
 
-        self.remove_button = QPushButton(
-            "➖ Удалить"
+        self.toolbar = SvodkaToolbar()
+
+        layout.addWidget(
+            self.toolbar,
         )
 
-        buttons.addWidget(
-            self.add_button
-        )
-
-        buttons.addWidget(
-            self.remove_button
-        )
-
-        buttons.addStretch()
-
-        self.build_button = QPushButton(
-            "📄 Сформировать сводку"
-        )
-
-        buttons.addWidget(
-            self.build_button
-        )
-
-        layout.addLayout(
-            buttons
-        )
-
-        self.date.dateChanged.connect(
-            self.on_date_changed
-        )
-
-        self.add_button.clicked.connect(
+        self.toolbar.add_clicked.connect(
             self.on_add
         )
 
-        self.remove_button.clicked.connect(
+        self.toolbar.remove_clicked.connect(
             self.on_remove
         )
 
-        self.build_button.clicked.connect(
+        self.toolbar.build_clicked.connect(
             self.on_build
         )
 
-        self.update_buttons()
-
-    # ---------------------------------------------------------
+        self.date_selector.date_changed.connect(
+            self.on_date_changed
+        )
+            # ---------------------------------------------------------
 
     def set_manager(
         self,
@@ -175,38 +83,60 @@ class SvodkaTab(QWidget):
 
         self.manager = manager
 
-        self.update_buttons()
+        self.refresh()
 
-        self.on_date_changed()
-
-    # ---------------------------------------------------------
-
-    def update_buttons(self):
-
-        enabled = self.manager is not None
-
-        self.add_button.setEnabled(
-            enabled
-        )
-
-        self.remove_button.setEnabled(
-            enabled
-        )
-
-        self.build_button.setEnabled(
-            enabled
-        )
     # ---------------------------------------------------------
 
     def current_date(self) -> str:
 
-        return self.date.date().toString(
-            "dd.MM.yyyy"
+        return self.date_selector.date_string()
+
+    # ---------------------------------------------------------
+
+    def refresh(self):
+
+        if self.manager is None:
+            return
+
+        self.model.set_records(
+            self.manager.all()
+        )
+
+        if self.model.rowCount():
+
+            self.table.selectRow(0)
+
+        filename = ""
+
+        if getattr(
+            self.manager.excel,
+            "filename",
+            "",
+        ):
+
+            filename = Path(
+                self.manager.excel.filename
+            ).name
+
+        total = len(
+            list(
+                self.manager.excel.iter_equipment()
+            )
+        )
+
+        self.info_panel.update_info(
+            filename=filename,
+            date=self.current_date(),
+            total=total,
+            idle=self.manager.count(),
         )
 
     # ---------------------------------------------------------
 
-    def on_date_changed(self):
+    def on_date_changed(
+        self,
+        _,
+    ):
 
         if self.manager is None:
             return
@@ -217,59 +147,45 @@ class SvodkaTab(QWidget):
                 self.current_date()
             )
 
-            self.model.set_records(
-                self.manager.all()
-            )
-
-            filename = ""
-
-            if getattr(self.manager.excel, "filename", ""):
-
-                import os
-
-                filename = os.path.basename(
-                self.manager.excel.filename
-                )
-
-            total = len(
-                list(
-                    self.manager.excel.iter_equipment()
-                )
-            )
-
-            self.info.setText(
-                f"""Файл: {filename}
-
-            Дата: {self.current_date()}
-
-            Общее кол-во техники: {total}
-
-            Общее кол-во техники в простое: {self.manager.count()}"""
-            )
-
-            self.table.resizeColumnsToContents()
-
-            self.table.horizontalHeader().setStretchLastSection(
-                True
-            )
+            self.refresh()
 
         except Exception as e:
 
-            self.model.clear()
-
-            self.info.setText(
-                str(e)
+            QMessageBox.critical(
+                self,
+                "ExcelSvodka",
+                str(e),
             )
-    # ---------------------------------------------------------
+                # ---------------------------------------------------------
 
-    def selected_row(self) -> int:
+    def on_add(self):
 
-        indexes = self.table.selectionModel().selectedRows()
+        if self.manager is None:
+            return
 
-        if not indexes:
-            return -1
+        dialog = AddRecordDialog(
+            self.manager,
+            self,
+        )
 
-        return indexes[0].row()
+        if not dialog.exec():
+            return
+
+        try:
+
+            self.manager.add(
+                dialog.record()
+            )
+
+            self.refresh()
+
+        except Exception as e:
+
+            QMessageBox.critical(
+                self,
+                "ExcelSvodka",
+                str(e),
+            )
 
     # ---------------------------------------------------------
 
@@ -278,44 +194,33 @@ class SvodkaTab(QWidget):
         if self.manager is None:
             return
 
-        row = self.selected_row()
+        row = self.table.selected_row()
 
         if row < 0:
             return
 
-        result = QMessageBox.question(
-            self,
-            "ExcelSvodka",
-            "Удалить выбранную запись?",
-        )
+        record = self.model.record(row)
 
-        if result != QMessageBox.Yes:
-            return
+        try:
 
-        self.manager.remove(row)
+            self.manager.remove_by_garage(
+                record.garage_number
+            )
 
-        self.model.set_records(
-            self.manager.all()
-        )
+            self.refresh()
 
-    # ---------------------------------------------------------
+        except Exception as e:
+
+            QMessageBox.critical(
+                self,
+                "ExcelSvodka",
+                str(e),
+            )
+                # ---------------------------------------------------------
 
     def on_build(self):
 
         if self.manager is None:
-            return
-
-        result = QMessageBox.question(
-            self,
-            "ExcelSvodka",
-            (
-                "Будет полностью сформирована "
-                "сводка на выбранную дату.\n\n"
-                "Продолжить?"
-            ),
-        )
-
-        if result != QMessageBox.Yes:
             return
 
         try:
@@ -330,97 +235,26 @@ class SvodkaTab(QWidget):
                 "Сводка успешно сформирована.",
             )
 
-        except Exception as e:
-
-            QMessageBox.critical(
-                self,
-                "Ошибка",
-                str(e),
-            )
-    # ---------------------------------------------------------
-
-    def on_add(self):
-
-        from gui.add_record_dialog import AddRecordDialog
-
-        if self.manager is None:
-            return
-
-        dialog = AddRecordDialog(
-            self.manager,
-            self,
-        )
-
-        if not dialog.exec():
-            return
-
-        record = dialog.record()
-
-        try:
-
-            self.manager.add(record)
-
-            self.model.set_records(
-                self.manager.all()
-            )
-
-            self.table.resizeColumnsToContents()
-
-            self.table.horizontalHeader().setStretchLastSection(
-                True
-            )
+            self.refresh()
 
         except Exception as e:
 
             QMessageBox.critical(
                 self,
-                "Ошибка",
+                "ExcelSvodka",
                 str(e),
             )
-    # ---------------------------------------------------------
-
-    def resizeEvent(self, event):
-
-        super().resizeEvent(event)
-
-        header = self.table.horizontalHeader()
-
-        header.setStretchLastSection(True)
-
-        widths = (
-            170,  # Тип
-            170,  # Модель
-            120,  # Гаражный №
-            420,  # Описание
-            140,  # Наработка
-        )
-
-        for column, width in enumerate(widths):
-
-            self.table.setColumnWidth(
-                column,
-                width,
-            )
 
     # ---------------------------------------------------------
 
-    def refresh(self):
-        """
-        Полностью обновляет таблицу.
-        """
+    def selected_record(self):
 
-        if self.manager is None:
-            return
+        row = self.table.selected_row()
 
-        self.model.set_records(
-            self.manager.all()
-        )
+        if row < 0:
+            return None
 
-        self.table.resizeRowsToContents()
-
-        self.table.horizontalHeader().setStretchLastSection(
-            True
-        )
+        return self.model.record(row)
 
     # ---------------------------------------------------------
 
@@ -428,10 +262,93 @@ class SvodkaTab(QWidget):
 
         self.model.clear()
 
-        self.info.clear()
+        self.info_panel.update_info(
+            filename="-",
+            date=self.current_date(),
+            total=0,
+            idle=0,
+        )
+            # ---------------------------------------------------------
+
+    def on_build(self):
+
+        if self.manager is None:
+            return
+
+        try:
+
+            self.manager.build(
+                self.current_date()
+            )
+
+            QMessageBox.information(
+                self,
+                "ExcelSvodka",
+                "Сводка успешно сформирована.",
+            )
+
+            self.refresh()
+
+        except Exception as e:
+
+            QMessageBox.critical(
+                self,
+                "ExcelSvodka",
+                str(e),
+            )
 
     # ---------------------------------------------------------
 
-    def manager_ready(self) -> bool:
+    def selected_record(self):
 
-        return self.manager is not None
+        row = self.table.selected_row()
+
+        if row < 0:
+            return None
+
+        return self.model.record(row)
+
+    # ---------------------------------------------------------
+
+    def clear(self):
+
+        self.model.clear()
+
+        self.info_panel.update_info(
+            filename="-",
+            date=self.current_date(),
+            total=0,
+            idle=0,
+        )
+            # ---------------------------------------------------------
+
+    def connect_signals(self):
+
+        self.table.doubleClicked.connect(
+            lambda _: self.on_edit()
+        )
+
+    # ---------------------------------------------------------
+
+    def set_enabled(
+        self,
+        enabled: bool,
+    ):
+
+        self.date_selector.setEnabled(
+            enabled
+        )
+
+        self.table.setEnabled(
+            enabled
+        )
+
+        self.toolbar.setEnabled(
+            enabled
+        )
+
+    # ---------------------------------------------------------
+
+    def reload(self):
+
+        self.refresh()
