@@ -28,8 +28,6 @@ class SvodkaLoader:
 
         self.excel = excel
 
-        self.dates = DateManager(excel)
-
         self.equipment = EquipmentManager(excel)
 
     # ---------------------------------------------------------
