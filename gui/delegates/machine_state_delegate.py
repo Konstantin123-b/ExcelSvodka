@@ -9,14 +9,12 @@ from core.models import MachineState
 
 class MachineStateDelegate(QStyledItemDelegate):
 
-    STATES = (
-        MachineState.IDLE,
-        MachineState.ACCIDENT,
-        MachineState.PLANNED,
-        MachineState.CUSTOMER,
+    ITEMS = (
+        ("Простой", MachineState.IDLE),
+        ("Аварийный ремонт", MachineState.ACCIDENT),
+        ("Плановые работы", MachineState.PLANNED),
+        ("Работы заказчика", MachineState.CUSTOMER),
     )
-
-    # ---------------------------------------------------------
 
     def createEditor(
         self,
@@ -27,12 +25,8 @@ class MachineStateDelegate(QStyledItemDelegate):
 
         combo = QComboBox(parent)
 
-        for state in self.STATES:
-
-            combo.addItem(
-                state.title,
-                state,
-            )
+        for text, _ in self.ITEMS:
+            combo.addItem(text)
 
         return combo
 
@@ -49,14 +43,15 @@ class MachineStateDelegate(QStyledItemDelegate):
             Qt.EditRole,
         )
 
-        for i in range(editor.count()):
+        for i, (text, _) in enumerate(self.ITEMS):
 
-            if editor.itemText(i) == value:
+            if text == value:
 
                 editor.setCurrentIndex(i)
 
                 return
-                  # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
 
     def setModelData(
         self,
