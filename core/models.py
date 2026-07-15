@@ -36,7 +36,9 @@ class MachineState(str, Enum):
                 return state
 
         return None
-        @dataclass(slots=True)
+
+        
+@dataclass(slots=True)
 class Equipment:
     """
     Описание единицы техники.
