@@ -14,12 +14,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
 )
 
-from core.equipment_manager import EquipmentManager
 from core.excel_manager import ExcelManager
 from core.svodka_manager import SvodkaManager
 
-from gui.work_tab import WorkTab
-from gui.idle_tab import IdleTab
+from gui.svodka_tab import SvodkaTab
 from gui.settings_tab import SettingsTab
 
 
@@ -29,88 +27,120 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.excel = ExcelManager()
-        self.equipment = None
-        self.engine = None
 
-        self.setWindowTitle("ExcelSvodka")
-        self.resize(1100, 800)
+        self.manager = None
+
+        self.setWindowTitle("ExcelSvodka 2.0")
+
+        self.resize(1400, 900)
 
         central = QWidget()
+
         self.setCentralWidget(central)
 
         layout = QVBoxLayout(central)
 
-        title = QLabel("ExcelSvodka")
+        title = QLabel("ExcelSvodka 2.0")
+
         title.setAlignment(Qt.AlignCenter)
+
         title.setStyleSheet(
-            "font-size:26px;font-weight:bold;"
+            """
+            QLabel{
+                font-size:28px;
+                font-weight:bold;
+            }
+            """
         )
 
         layout.addWidget(title)
 
         top = QHBoxLayout()
 
-        self.open_button = QPushButton("Открыть Excel")
-        self.open_button.clicked.connect(self.open_excel)
+        self.open_button = QPushButton(
+            "Открыть Excel"
+        )
 
-        self.file_label = QLabel("Файл не открыт")
+        self.open_button.clicked.connect(
+            self.open_excel
+        )
 
-        top.addWidget(self.open_button)
-        top.addWidget(self.file_label)
+        self.file_label = QLabel(
+            "Файл не открыт"
+        )
+
+        top.addWidget(
+            self.open_button
+        )
+
+        top.addWidget(
+            self.file_label,
+            1,
+        )
 
         layout.addLayout(top)
 
         self.tabs = QTabWidget()
 
-        self.work_tab = WorkTab()
-        self.idle_tab = IdleTab()
+        self.svodka_tab = SvodkaTab()
+
         self.settings_tab = SettingsTab()
 
-        self.tabs.addTab(self.work_tab, "Работы")
-        self.tabs.addTab(self.idle_tab, "Простои")
-        self.tabs.addTab(self.settings_tab, "Настройки")
+        self.tabs.addTab(
+            self.svodka_tab,
+            "Ежедневная сводка",
+        )
 
-        layout.addWidget(self.tabs)
+        self.tabs.addTab(
+            self.settings_tab,
+            "Настройки",
+        )
+
+        layout.addWidget(
+            self.tabs
+        )
 
         self.log = QTextEdit()
+
         self.log.setReadOnly(True)
-        self.log.setMinimumHeight(170)
 
-        layout.addWidget(self.log)
+        self.log.setMinimumHeight(180)
 
-        self.status = QLabel("Готов")
-        layout.addWidget(self.status)
-
-        self.work_tab.garage_changed.connect(
-            self.update_models
+        layout.addWidget(
+            self.log
         )
 
-        self.idle_tab.garage_changed.connect(
-            self.update_models
+        self.status = QLabel(
+            "Готов"
         )
 
-        self.work_tab.add_requested.connect(
-            self.on_add_work
-        )
-
-        self.idle_tab.transfer_requested.connect(
-            self.on_transfer_idle
+        layout.addWidget(
+            self.status
         )
 
         self.settings_tab.settings_changed.connect(
             self.on_settings_changed
         )
 
-        self.log_message("Приложение запущено.")
+        self.log_message(
+            "ExcelSvodka 2.0 запущена."
+        )
+            # ---------------------------------------------------------
 
-    def log_message(self, text):
+    def log_message(
+        self,
+        text: str,
+    ):
+
         self.log.append(text)
+
+    # ---------------------------------------------------------
 
     def open_excel(self):
 
         filename, _ = QFileDialog.getOpenFileName(
             self,
-            "Выберите Excel",
+            "Выберите файл Excel",
             "",
             "Excel (*.xlsx *.xlsm)",
         )
@@ -122,149 +152,24 @@ class MainWindow(QMainWindow):
 
             self.excel.open(filename)
 
-            self.equipment = EquipmentManager(
+            self.manager = SvodkaManager(
                 self.excel
             )
 
-            self.engine = SvodkaManager
-                self.excel
+            self.svodka_tab.set_manager(
+                self.manager
             )
 
             self.file_label.setText(
                 Path(filename).name
             )
 
-            self.status.setText("Файл открыт")
-
-            self.log_message(
-                f"Открыт файл: {filename}"
-            )
-
-        except Exception as e:
-
-            QMessageBox.critical(
-                self,
-                "Ошибка",
-                str(e),
-            )
-
-    def update_models(self, garage):
-
-        if self.equipment is None:
-            return
-
-        garage = garage.strip()
-
-        if not garage:
-            self.work_tab.set_models([])
-            self.idle_tab.set_models([])
-            return
-
-        try:
-
-            machines = self.equipment.find(
-                garage_number=garage,
-                model=None,
-            )
-
-            models = []
-            added = set()
-
-            for machine in machines:
-
-                if machine.model in added:
-                    continue
-
-                models.append(machine.model)
-                added.add(machine.model)
-
-            self.work_tab.set_models(models)
-            self.idle_tab.set_models(models)
-
-        except Exception as e:
-
-            self.log_message(
-                f"Ошибка поиска техники: {e}"
-            )
-
-    def on_add_work(self, data):
-
-        if self.engine is None:
-
-            QMessageBox.warning(
-                self,
-                "ExcelSvodka",
-                "Сначала откройте файл Excel."
-            )
-
-            return
-
-        try:
-
-            self.engine.add_work(
-                garage_number=data["garage"],
-                model=data["model"],
-                date=data["date"],
-                code=data["code"],
-                work=data["work"],
-                employees=data["employees"],
-            )
-
-            self.engine.apply_changes()
-
-            self.engine.save()
-
-            self.log_message(
-                f"✔ Работа добавлена: {data['garage']}"
-            )
-
             self.status.setText(
-                "Работа успешно добавлена"
-            )
-
-            QMessageBox.information(
-                self,
-                "ExcelSvodka",
-                "Работа успешно записана."
-            )
-
-            self.work_tab.clear_form()
-
-        except Exception as e:
-
-            QMessageBox.critical(
-                self,
-                "Ошибка",
-                str(e),
+                "Excel открыт"
             )
 
             self.log_message(
-                f"Ошибка: {e}"
-            )
-    def on_transfer_idle(self, data):
-
-        if self.engine is None:
-
-            QMessageBox.warning(
-                self,
-                "ExcelSvodka",
-                "Сначала откройте файл Excel."
-            )
-
-            return
-
-        try:
-
-            # Пока только журнал.
-            # После подключения IdleTransferManager
-            # здесь будет реальный перенос простоев.
-
-            self.log_message(
-                f"Перенос простоя: {data}"
-            )
-
-            self.status.setText(
-                "Перенос простоя выполнен"
+                f"Открыт файл:\n{filename}"
             )
 
         except Exception as e:
@@ -275,29 +180,138 @@ class MainWindow(QMainWindow):
                 str(e),
             )
 
-            self.log_message(
-                f"Ошибка переноса: {e}"
-            )
+    # ---------------------------------------------------------
 
-    def on_settings_changed(self, settings):
+    def on_settings_changed(
+        self,
+        settings,
+    ):
 
         self.log_message(
             "Настройки сохранены."
         )
 
-    def closeEvent(self, event):
+    # ---------------------------------------------------------
+
+    def show_error(
+        self,
+        text: str,
+    ):
+
+        QMessageBox.critical(
+            self,
+            "ExcelSvodka",
+            text,
+        )
+
+        self.log_message(text)
+
+    # ---------------------------------------------------------
+
+    def show_info(
+        self,
+        text: str,
+    ):
+
+        QMessageBox.information(
+            self,
+            "ExcelSvodka",
+            text,
+        )
+
+        self.log_message(text)
+            # ---------------------------------------------------------
+
+    def log_message(
+        self,
+        text: str,
+    ):
+
+        self.log.append(text)
+
+    # ---------------------------------------------------------
+
+    def open_excel(self):
+
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Выберите файл Excel",
+            "",
+            "Excel (*.xlsx *.xlsm)",
+        )
+
+        if not filename:
+            return
 
         try:
 
-            if self.excel is not None:
-                self.excel.save()
+            self.excel.open(filename)
+
+            self.manager = SvodkaManager(
+                self.excel
+            )
+
+            self.svodka_tab.set_manager(
+                self.manager
+            )
+
+            self.file_label.setText(
+                Path(filename).name
+            )
+
+            self.status.setText(
+                "Excel открыт"
+            )
+
+            self.log_message(
+                f"Открыт файл:\n{filename}"
+            )
 
         except Exception as e:
 
-            QMessageBox.warning(
+            QMessageBox.critical(
                 self,
-                "ExcelSvodka",
-                f"Не удалось сохранить файл:\n{e}",
+                "Ошибка",
+                str(e),
             )
 
-        event.accept()
+    # ---------------------------------------------------------
+
+    def on_settings_changed(
+        self,
+        settings,
+    ):
+
+        self.log_message(
+            "Настройки сохранены."
+        )
+
+    # ---------------------------------------------------------
+
+    def show_error(
+        self,
+        text: str,
+    ):
+
+        QMessageBox.critical(
+            self,
+            "ExcelSvodka",
+            text,
+        )
+
+        self.log_message(text)
+
+    # ---------------------------------------------------------
+
+    def show_info(
+        self,
+        text: str,
+    ):
+
+        QMessageBox.information(
+            self,
+            "ExcelSvodka",
+            text,
+        )
+
+        self.log_message(text)
