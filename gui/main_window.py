@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 
 from core.equipment_manager import EquipmentManager
 from core.excel_manager import ExcelManager
-from core.svodka_engine import SvodkaEngine
+from core.svodka_manager import SvodkaManager
 
 from gui.work_tab import WorkTab
 from gui.idle_tab import IdleTab
@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
                 self.excel
             )
 
-            self.engine = SvodkaEngine(
+            self.engine = SvodkaManager
                 self.excel
             )
 
