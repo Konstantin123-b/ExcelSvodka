@@ -15,6 +15,10 @@ from gui.models.svodka_table_model import (
     SvodkaTableModel,
 )
 
+from gui.delegates.machine_state_delegate import (
+    MachineStateDelegate,
+)
+
 
 class SvodkaTab(QWidget):
 
@@ -74,6 +78,11 @@ class SvodkaTab(QWidget):
 
         self.table.setModel(
             self.model
+        )
+
+        self.table.setItemDelegateForColumn(
+            0,
+            MachineStateDelegate(self.table),
         )
 
         self.table.setAlternatingRowColors(
