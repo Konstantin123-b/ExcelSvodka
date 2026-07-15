@@ -3,21 +3,17 @@ from __future__ import annotations
 from copy import deepcopy
 
 from core.comment_manager import CommentManager
-from core.date_manager import DateManager
-from core.equipment_manager import EquipmentManager
-from core.models import MachineState
 from core.models import SvodkaRecord
-from core.svodka_loader import SvodkaLoader
 from core.style_manager import StyleManager
-from core.worksheet_editor import WorksheetEditor
+from core.svodka_loader import SvodkaLoader
 
 
 class SvodkaManager:
     """
-    Главное ядро ExcelSvodka 2.0
+    Главное ядро ExcelSvodka 2.0.
 
     Хранит список записей
-    и формирует ежедневную сводку.
+    и формирует сводку.
     """
 
     def __init__(self, excel):
@@ -28,19 +24,39 @@ class SvodkaManager:
 
         self.comments = CommentManager(excel)
 
-        self.editor = WorksheetEditor(excel)
-
-        self.equipment = EquipmentManager(excel)
-
-        self.dates = DateManager(excel)
-
         self.records: list[SvodkaRecord] = []
-
-    # ---------------------------------------------------------
+            # ---------------------------------------------------------
 
     def clear(self):
 
         self.records.clear()
+
+    # ---------------------------------------------------------
+
+    def all(self) -> list[SvodkaRecord]:
+
+        return deepcopy(
+            self.records
+        )
+
+    # ---------------------------------------------------------
+
+    def count(self) -> int:
+
+        return len(
+            self.records
+        )
+
+    # ---------------------------------------------------------
+
+    def sort(self):
+
+        self.records.sort(
+            key=lambda record: (
+                record.model.lower(),
+                record.garage_number.lower(),
+            )
+        )
 
     # ---------------------------------------------------------
 
@@ -49,55 +65,60 @@ class SvodkaManager:
         date_string: str,
     ):
 
-        self.records = self.loader.load_unique(
+        self.records = self.loader.load(
             date_string
         )
 
-    # ---------------------------------------------------------
-
-    def all(self):
-
-        return deepcopy(
-            self.records
-        )
-
-    # ---------------------------------------------------------
-
-    def count(self):
-
-        return len(
-            self.records
-        )
-
-    # ---------------------------------------------------------
+        self.sort()
+            # ---------------------------------------------------------
 
     def add(
         self,
         record: SvodkaRecord,
     ):
 
-        garage = (
+        if self.contains(
             record.garage_number
-            .strip()
-            .lower()
+        ):
+
+            raise RuntimeError(
+                f"Машина №{record.garage_number} уже есть в списке."
+            )
+
+        self.records.append(
+            record
         )
 
-        for item in self.records:
+        self.sort()
+
+    # ---------------------------------------------------------
+
+    def update(
+        self,
+        index: int,
+        record: SvodkaRecord,
+    ):
+
+        for i, item in enumerate(self.records):
+
+            if i == index:
+                continue
 
             if (
-                item.garage_number
-                .strip()
-                .lower()
-            ) == garage:
+                item.garage_number.strip().lower()
+                ==
+                record.garage_number.strip().lower()
+            ):
 
                 raise RuntimeError(
-                    f"Машина №{record.garage_number} уже присутствует в сводке."
+                    f"Машина №{record.garage_number} уже есть в списке."
                 )
 
-        self.records.append(record)
+        self.records[index] = record
 
         self.sort()
-          # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
 
     def remove(
         self,
@@ -108,139 +129,94 @@ class SvodkaManager:
 
     # ---------------------------------------------------------
 
-    def update(
+    def contains(
         self,
-        index: int,
-        record: SvodkaRecord,
-    ):
+        garage_number: str,
+    ) -> bool:
 
-        garage = (
-            record.garage_number
-            .strip()
-            .lower()
+        garage_number = garage_number.strip().lower()
+
+        return any(
+
+            record.garage_number.strip().lower()
+            ==
+            garage_number
+
+            for record in self.records
+
         )
-
-        for i, item in enumerate(self.records):
-
-            if i == index:
-                continue
-
-            if (
-                item.garage_number
-                .strip()
-                .lower()
-            ) == garage:
-
-                raise RuntimeError(
-                    f"Машина №{record.garage_number} уже присутствует в сводке."
-                )
-
-        self.records[index] = record
-
-        self.sort()
-
-    # ---------------------------------------------------------
-
-    def sort(self):
-
-        self.records.sort(
-            key=lambda x: (
-                x.model.lower(),
-                x.garage_number.lower(),
-            )
-        )
-
-    # ---------------------------------------------------------
-
-    def unavailable_count(self):
-
-        return len(self.records)
-
-    # ---------------------------------------------------------
+            # ---------------------------------------------------------
 
     def build(
         self,
         date_string: str,
     ):
         """
-        Формирует выбранную дату в Excel.
-
-        Алгоритм:
-
-        1. Очищает выбранную дату.
-        2. Записывает все записи из списка.
+        Полностью формирует выбранную дату.
         """
 
-        column = self.dates.find(
+        column = self.excel.find_date_column(
             date_string
         )
 
-        self._clear_column(column)
+        self._clear_column(
+            column
+        )
 
         for record in self.records:
 
-            equipment = self.equipment.find(
-                garage_number=record.garage_number,
-                model=record.model,
+            equipment = self.excel.get_equipment(
+                record.garage_number
             )
 
-            if not equipment:
-
-                raise RuntimeError(
-                    f"Не найдена техника {record.garage_number}"
-                )
-
-            machine = equipment[0]
-
             self._write_record(
-                machine.row,
-                column,
-                record,
+
+                row=equipment.row,
+
+                column=column,
+
+                record=record,
+
             )
 
         self.excel.save()
-          # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
 
     def _clear_column(
         self,
         column: int,
     ):
         """
-        Полностью очищает выбранную дату
-        от записей сводки.
+        Удаляет все записи сводки
+        из выбранного дня.
         """
 
-        start_row = self.equipment.find_first_row()
+        from openpyxl.styles import PatternFill
 
-        for row in range(
-            start_row,
-            self.excel.rows + 1,
-        ):
+        empty_fill = PatternFill(
+            fill_type=None
+        )
 
-            cell = self.excel.worksheet.cell(
-                row=row,
-                column=column,
+        for equipment in self.excel.iter_equipment():
+
+            self.excel.set_cell(
+                equipment.row,
+                column,
+                "",
             )
 
-            value = str(
-                cell.value or ""
-            ).strip().lower()
+            self.excel.set_fill(
+                equipment.row,
+                column,
+                empty_fill,
+            )
 
-            if value not in (
-                MachineState.IDLE.value,
-                MachineState.ACCIDENT.value,
-                MachineState.PLANNED.value,
-                MachineState.CUSTOMER.value,
-            ):
-                continue
-
-            cell.value = ""
-
-            cell.fill = StyleManager.get_fill("")
-
-            cell.comment = None
-
-    # ---------------------------------------------------------
+            self.excel.clear_comment(
+                equipment.row,
+                column,
+            )
+                # ---------------------------------------------------------
 
     def _write_record(
         self,
@@ -252,39 +228,48 @@ class SvodkaManager:
         Записывает одну запись в Excel.
         """
 
-        cell = self.excel.worksheet.cell(
-            row=row,
-            column=column,
+        # Код состояния
+        self.excel.set_cell(
+            row,
+            column,
+            record.code,
         )
 
-        cell.value = record.code
-
-        cell.fill = StyleManager.get_fill(
-    record.code
+        # Цвет ячейки
+        self.excel.set_fill(
+            row,
+            column,
+            StyleManager.get_fill(
+                record.code
+            ),
         )
 
-        # Примечание.
-        self.comments.set(
-            row=row,
-            column=column,
-            record=record,
+        # Комментарий
+        comment = self.comments.build(
+            record
         )
-          # ---------------------------------------------------------
+
+        self.excel.set_comment(
+            row,
+            column,
+            comment,
+        )
+            # ---------------------------------------------------------
 
     def find(
         self,
         garage_number: str,
     ) -> SvodkaRecord | None:
 
-        garage = garage_number.strip().lower()
+        garage_number = garage_number.strip().lower()
 
         for record in self.records:
 
             if (
-                record.garage_number
-                .strip()
-                .lower()
-            ) == garage:
+                record.garage_number.strip().lower()
+                ==
+                garage_number
+            ):
 
                 return record
 
@@ -297,15 +282,15 @@ class SvodkaManager:
         garage_number: str,
     ) -> int:
 
-        garage = garage_number.strip().lower()
+        garage_number = garage_number.strip().lower()
 
         for index, record in enumerate(self.records):
 
             if (
-                record.garage_number
-                .strip()
-                .lower()
-            ) == garage:
+                record.garage_number.strip().lower()
+                ==
+                garage_number
+            ):
 
                 return index
 
@@ -323,16 +308,16 @@ class SvodkaManager:
             garage_number
         )
 
-        if index < 0:
+        if index == -1:
 
             self.add(record)
 
-            return
+        else:
 
-        self.update(
-            index,
-            record,
-        )
+            self.update(
+                index,
+                record,
+            )
 
     # ---------------------------------------------------------
 
@@ -351,13 +336,10 @@ class SvodkaManager:
 
     # ---------------------------------------------------------
 
-    def contains(
-        self,
-        garage_number: str,
-    ) -> bool:
+    def unavailable_count(self) -> int:
+        """
+        Количество недоступной техники.
+        Сейчас все записи считаются недоступными.
+        """
 
-        return (
-            self.find_index(
-                garage_number
-            ) >= 0
-        )
+        return len(self.records)
