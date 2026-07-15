@@ -257,12 +257,10 @@ class SvodkaManager:
             column=column,
         )
 
-        # В ячейке отображается только простой (>).
         cell.value = record.code
 
-        # Цвет зависит от типа записи.
         cell.fill = StyleManager.get_fill(
-            record.code
+    record.code
         )
 
         # Примечание.
