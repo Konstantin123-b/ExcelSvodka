@@ -84,3 +84,16 @@ class SvodkaRecord:
                 f"state={self.state!r}, type={type(self.state)}"
             )
         return self.state.value
+
+    @property
+    def code(self) -> str:
+        if not isinstance(self.state, MachineState):
+            import traceback
+
+            raise TypeError(
+                f"state={self.state!r}, "
+                f"type={type(self.state)}\n\n"
+                + "".join(traceback.format_stack())
+            )
+
+        return self.state.value
