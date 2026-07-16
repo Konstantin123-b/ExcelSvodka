@@ -160,7 +160,7 @@ class SvodkaLoader:
         return sorted(
             records,
             key=lambda r: (
-                r.state.value,
+                r.state,
                 r.model,
                 r.garage_number,
             ),
