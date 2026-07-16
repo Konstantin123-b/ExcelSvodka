@@ -163,6 +163,9 @@ class SvodkaManager:
             column
         )
 
+        for i, record in enumerate(self.records):
+            print(i, type(record.state), repr(record.state))
+        
         for record in self.records:
 
             equipment = self.excel.get_equipment(
