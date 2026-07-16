@@ -76,3 +76,11 @@ class SvodkaRecord:
     @property
     def state_name(self) -> str:
         return self.state.title
+
+    @property
+    def code(self) -> str:
+        if not isinstance(self.state, MachineState):
+            raise TypeError(
+                f"state={self.state!r}, type={type(self.state)}"
+            )
+        return self.state.value
