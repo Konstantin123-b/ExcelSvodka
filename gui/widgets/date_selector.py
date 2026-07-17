@@ -30,6 +30,8 @@ class DateSelector(QWidget):
             QDate.currentDate()
         )
 
+        self.previous_date = self.date_edit.date()
+
         layout.addWidget(self.date_edit)
 
         layout.addStretch()
@@ -57,11 +59,16 @@ class DateSelector(QWidget):
 
     # ---------------------------------------------------------
 
-    def _on_date_changed(
-        self,
-        _,
-    ):
+    def _on_date_changed(self, date):
 
         self.date_changed.emit(
-            self.date_string()
+        self.date_string()
         )
+
+        self.previous_date = date
+
+    def restore_previous_date(self):
+
+        self.date_edit.blockSignals(True)
+        self.date_edit.setDate(self.previous_date)
+        self.date_edit.blockSignals(False)
