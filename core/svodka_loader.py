@@ -7,6 +7,8 @@ from core.models import (
     SvodkaRecord,
 )
 
+from core.color_detector import ColorDetector
+
 
 class SvodkaLoader:
 
@@ -41,6 +43,15 @@ class SvodkaLoader:
             code = str(
                 cell.value or ""
             ).strip().lower()
+
+            # Если в ячейке нет символа,
+            # пытаемся определить код по цвету.
+
+            if not code:
+
+                code = ColorDetector.detect(
+                    cell.fill
+                ) or ""
 
             state = MachineState.from_code(
                 code
@@ -81,6 +92,10 @@ class SvodkaLoader:
                 )
 
             )
+
+        print("===== LOADED =====")
+        for r in records:
+            print(type(r.state), repr(r.state))
 
         return self._sort_records(
 

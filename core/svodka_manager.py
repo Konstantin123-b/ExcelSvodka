@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 
 from core.comment_manager import CommentManager
 from core.models import SvodkaRecord
@@ -25,7 +24,17 @@ class SvodkaManager:
         self.comments = CommentManager(excel)
 
         self.records: list[SvodkaRecord] = []
-            # ---------------------------------------------------------
+
+        self.modified = False
+
+    def is_modified(self) -> bool:
+        return self.modified
+
+    def set_modified(self, value: bool):
+        self.modified = value
+
+
+    # ---------------------------------------------------------
 
     def clear(self):
 
@@ -34,10 +43,7 @@ class SvodkaManager:
     # ---------------------------------------------------------
 
     def all(self) -> list[SvodkaRecord]:
-
-        return deepcopy(
-            self.records
-        )
+        return self.records
 
     # ---------------------------------------------------------
 
@@ -70,7 +76,10 @@ class SvodkaManager:
         )
 
         self.sort()
-            # ---------------------------------------------------------
+
+        self.set_modified(False)
+    
+    # ---------------------------------------------------------
 
     def add(
         self,
@@ -85,11 +94,14 @@ class SvodkaManager:
                 f"Машина №{record.garage_number} уже есть в списке."
             )
 
+
         self.records.append(
             record
         )
 
         self.sort()
+
+        self.set_modified(True)
 
     # ---------------------------------------------------------
 
@@ -117,6 +129,8 @@ class SvodkaManager:
         self.records[index] = record
 
         self.sort()
+
+        self.set_modified(True)
 
     # ---------------------------------------------------------
 
@@ -158,13 +172,6 @@ class SvodkaManager:
         column = self.excel.find_date_column(
             date_string
         )
-
-        self._clear_column(
-            column
-        )
-
-        for i, record in enumerate(self.records):
-            print(i, type(record.state), repr(record.state))
         
         for record in self.records:
 
@@ -183,6 +190,8 @@ class SvodkaManager:
             )
 
         self.excel.save()
+
+        self.set_modified(False)
 
     # ---------------------------------------------------------
 
@@ -231,12 +240,16 @@ class SvodkaManager:
         Записывает одну запись в Excel.
         """
 
-        # Код состояния
+        # В ячейке отображается только простой.
+        # Все виды работ хранятся в комментарии.
+
+        cell_value = ">" if record.code == ">" else ""
+
         self.excel.set_cell(
-            row,
-            column,
-            record.code,
-        )
+         row,
+         column,
+         cell_value,
+    )
 
         # Цвет ячейки
         self.excel.set_fill(
@@ -336,6 +349,8 @@ class SvodkaManager:
         if index >= 0:
 
             self.remove(index)
+
+        self.set_modified(True)
 
     # ---------------------------------------------------------
 

@@ -6,6 +6,7 @@ from openpyxl.comments import Comment
 
 from core.models import Equipment
 
+from openpyxl.styles import PatternFill
 
 class ExcelManager:
     """
@@ -399,8 +400,56 @@ class ExcelManager:
         cell = self.worksheet.cell(
             row=row,
             column=column,
-        )
+    )
 
         cell.value = None
-
         cell.comment = None
+        cell.fill = PatternFill()
+
+    def clear_date(
+        self,
+        date_string: str,
+    ):
+
+        column = self.find_date_column(
+            date_string
+        )
+
+        for equipment in self.iter_equipment():
+
+            self.clear_cell(
+             equipment.row,
+                column,
+            )
+
+    def write_state(
+        self,
+        garage_number: str,
+        date_string: str,
+        code: str,
+        fill,
+        comment: str = "",
+    ):
+
+        row, column = self.find_target_cell(
+            garage_number,
+            date_string,
+        )
+
+        self.set_cell(
+            row,
+            column,
+            code,
+        )
+
+        self.set_fill(
+            row,
+            column,
+            fill,
+        )
+
+        self.set_comment(
+            row,
+            column,
+            comment,
+        )
