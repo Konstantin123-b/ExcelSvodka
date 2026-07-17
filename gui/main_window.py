@@ -17,6 +17,8 @@ from core.svodka_manager import SvodkaManager
 from gui.settings_tab import SettingsTab
 from gui.svodka_tab import SvodkaTab
 
+from PySide6.QtWidgets import QMessageBox
+
 
 class MainWindow(QMainWindow):
 
@@ -76,7 +78,8 @@ class MainWindow(QMainWindow):
         )
 
         self.open_excel()
-            # ---------------------------------------------------------
+            
+    # ---------------------------------------------------------
 
     def open_excel(self):
 
@@ -143,23 +146,55 @@ class MainWindow(QMainWindow):
                 "ExcelSvodka",
                 str(e),
             )
-                # ---------------------------------------------------------
 
-    def closeEvent(
-        self,
-        event,
-    ):
+    # ---------------------------------------------------------
+
+    def closeEvent(self, event):
+
+        if (
+            self.manager is not None
+            and self.manager.is_modified()
+        ):
+
+            result = QMessageBox.question(
+                self,
+                "Несохраненные изменения",
+                "Есть несохраненные изменения.\n\n"
+                "Сохранить их перед выходом?",
+                QMessageBox.Yes
+                | QMessageBox.No
+                | QMessageBox.Cancel,
+                QMessageBox.Yes,
+            )
+
+            if result == QMessageBox.Cancel:
+                event.ignore()
+                return
+
+            if result == QMessageBox.Yes:
+
+                try:
+                    self.manager.build(
+                        self.svodka_tab.current_date()
+                    )
+
+                except Exception as e:
+
+                    QMessageBox.critical(
+                        self,
+                        "Ошибка",
+                        str(e),
+                    )
+
+                    event.ignore()
+                    return
 
         self.settings.window_size = (
             self.width(),
             self.height(),
         )
 
-        super().closeEvent(
-            event
-        )
-
-    # ---------------------------------------------------------
+        super().closeEvent(event)
 
     def show_error(
         self,

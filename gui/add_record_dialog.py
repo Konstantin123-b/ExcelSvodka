@@ -130,8 +130,15 @@ class AddRecordDialog(QDialog):
 
     def record(self) -> SvodkaRecord:
 
+        state = MachineState.from_code(
+            str(self.state.currentData())
+        )
+
+        if state is None:
+            raise RuntimeError("Не удалось определить тип записи.")
+
         return SvodkaRecord(
-            state=self.state.currentData(),
+            state=state,
             garage_number=self.garage.text().strip(),
             model=self.model.text().strip(),
             description=self.description.toPlainText().strip(),
