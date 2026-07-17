@@ -50,7 +50,7 @@ class SvodkaTableModel(QAbstractTableModel):
 
         self.beginResetModel()
 
-        self.records = list(records)
+        self.records = records
 
         self.endResetModel()
 
